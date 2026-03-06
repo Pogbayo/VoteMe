@@ -1,0 +1,6 @@
+@VoteMe.API_HostAddress = http://localhost:5274
+
+GET {{VoteMe.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

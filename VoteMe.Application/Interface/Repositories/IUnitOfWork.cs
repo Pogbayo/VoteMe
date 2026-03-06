@@ -1,0 +1,16 @@
+﻿namespace VoteMe.Application.Interfaces.Repositories
+{
+    public interface IUnitOfWork : IDisposable
+    {
+        IOrganizationRepository Organizations { get; }
+        IOrganizationMemberRepository OrganizationMembers { get; }
+        IElectionRepository Elections { get; }
+        ICandidateRepository Candidates { get; }
+        IVoteRepository Votes { get; }
+        IAuditLogRepository AuditLogs { get; }
+        Task<int> SaveChangesAsync();
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
+    }
+}
