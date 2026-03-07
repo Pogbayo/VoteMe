@@ -1,6 +1,8 @@
-﻿namespace VoteMe.Domain
+﻿using VoteMe.Domain.Interface;
+
+namespace VoteMe.Domain
 {
-    public abstract class BaseEntity
+    public abstract class BaseEntity : ISoftDeletable
     {
         public Guid Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

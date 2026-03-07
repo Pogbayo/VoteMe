@@ -1,11 +1,12 @@
 ﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using VoteMe.Application.Interfaces.Repositories;
+using VoteMe.Domain.Interface;
 using VoteMe.Infrastructure.Data;
 
 namespace VoteMe.Infrastructure.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T> where T : class
+    public class GenericRepository<T> : IGenericRepository<T> where T : class, ISoftDeletable
     {
         protected readonly AppDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -58,15 +59,8 @@ namespace VoteMe.Infrastructure.Repositories
 
         public void SoftDelete(T entity)
         {
-            var property = entity.GetType().GetProperty("IsDeleted");
-            var deletedAt = entity.GetType().GetProperty("DeletedAt");
-
-            if (property != null)
-                property.SetValue(entity, true);
-
-            if (deletedAt != null)
-                deletedAt.SetValue(entity, DateTime.UtcNow);
-
+            entity.IsDeleted = true;
+            entity.DeletedAt = DateTime.UtcNow;
             _dbSet.Update(entity);
         }
 
@@ -76,7 +70,7 @@ namespace VoteMe.Infrastructure.Repositories
             if (entity != null)
                 SoftDelete(entity); 
         }
-
+        
         public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.AnyAsync(predicate);

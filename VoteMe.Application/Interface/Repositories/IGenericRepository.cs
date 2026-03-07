@@ -1,8 +1,9 @@
 ﻿using System.Linq.Expressions;
+using VoteMe.Domain.Interface;
 
 namespace VoteMe.Application.Interfaces.Repositories
 {
-    public interface IGenericRepository<T> where T : class
+    public interface IGenericRepository<T> where T : class, ISoftDeletable
     {
         Task<T?> GetByIdAsync(Guid id);
         Task<IEnumerable<T>> GetAllAsync();
