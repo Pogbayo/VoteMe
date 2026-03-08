@@ -1,12 +1,16 @@
 ﻿using System.Linq.Expressions;
 using VoteMe.Domain.Interface;
 
-namespace VoteMe.Application.Interfaces.Repositories
+namespace VoteMe.Application.Interface.IRepositories
 {
     public interface IGenericRepository<T> where T : class, ISoftDeletable
     {
         Task<T?> GetByIdAsync(Guid id);
-        Task<IEnumerable<T>> GetAllAsync();
+        Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+            Expression<Func<T, bool>>? predicate = null,
+            int page = 1,
+            int pageSize = 20
+            );
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
         Task<T?> FindOneAsync(Expression<Func<T, bool>> predicate);
         Task AddAsync(T entity);

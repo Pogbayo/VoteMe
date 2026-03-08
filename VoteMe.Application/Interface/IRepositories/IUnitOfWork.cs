@@ -1,4 +1,4 @@
-﻿namespace VoteMe.Application.Interfaces.Repositories
+﻿namespace VoteMe.Application.Interface.IRepositories
 {
     public interface IUnitOfWork : IDisposable
     {

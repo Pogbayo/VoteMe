@@ -1,14 +1,17 @@
 ﻿using VoteMe.Domain.Entities;
 using VoteMe.Domain.Enum;
 
-namespace VoteMe.Application.Interfaces.Repositories
+namespace VoteMe.Application.Interface.IRepositories
 {
     public interface IElectionRepository : IGenericRepository<Election>
     {
         Task<Election?> GetWithCandidatesAsync(Guid electionId);
         Task<Election?> GetWithVotesAsync(Guid electionId);
         Task<Election?> GetFullElectionAsync(Guid electionId);
-        Task<IEnumerable<Election>> GetOrganizationElectionsAsync(Guid organizationId);
+        Task<(IEnumerable<Election> Items, int TotalCount)> GetOrganizationElectionsAsync(
+            Guid organizationId,
+            int page = 1,
+            int pageSize = 20);
         Task<IEnumerable<Election>> GetElectionsByStatusAsync(ElectionStatus status);
         Task<IEnumerable<Election>> GetActiveElectionsAsync();
     }

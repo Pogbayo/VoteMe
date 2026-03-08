@@ -12,21 +12,20 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
-        public async Task<IEnumerable<AuditLog>> GetUserLogsAsync(Guid userId)
+        public async Task<IEnumerable<AuditLog>> GetUserLogsAsync(
+             Guid userId,
+             int page = 1,
+             int pageSize = 20)
         {
+            if (page < 1) page = 1;
             return await _dbSet
-                 .Where(a => a.UserId == userId)
-                 .OrderByDescending(a => a.Timestamp)
-                 .ToListAsync();
-        }
-
-        public async Task<IEnumerable<AuditLog>> GetEntityLogsAsync(string entity)
-        {
-           return await _dbSet
-                .Where(a => a.Entity == entity)
+                .Where(a => a.UserId == userId)
                 .OrderByDescending(a => a.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
+
 
         public async Task LogAsync(Guid userId, string action, string entity, string details)
         {

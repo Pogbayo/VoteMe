@@ -1,5 +1,4 @@
-﻿
-using VoteMe.Domain.Enum;
+﻿using VoteMe.Domain.Enum;
 
 namespace VoteMe.Domain.Entities
 {

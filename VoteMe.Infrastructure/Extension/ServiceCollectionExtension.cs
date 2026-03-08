@@ -1,12 +1,22 @@
 ﻿using System.Text;
+using Amazon.SimpleEmail;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
+using VoteMe.Infrastructure.AWS;
+using VoteMe.Infrastructure.Consumers.Auth;
+using VoteMe.Infrastructure.Consumers.Election;
+using VoteMe.Infrastructure.Consumers.Organization;
+using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
+using VoteMe.Infrastructure.Services;
 
 namespace VoteMe.Infrastructure.Extension
 {
@@ -20,6 +30,19 @@ namespace VoteMe.Infrastructure.Extension
             {
                 throw new InvalidOperationException("Connection string not found. Check user secrets.");
             }
+
+            //AWS Settings
+            services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+            services.AddScoped<IAmazonSimpleEmailService>(sp =>
+            {
+                var settings = sp.GetRequiredService<IOptions<AwsSettings>>().Value;
+
+                return new AmazonSimpleEmailServiceClient(
+                    settings.AccessKeyId,
+                    settings.SecretAccessKey,
+                    Amazon.RegionEndpoint.GetBySystemName(settings.Region)
+                );
+            });
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(connectionString, sqlOptions =>
@@ -38,6 +61,14 @@ namespace VoteMe.Infrastructure.Extension
             // JWT Authentication
             var jwtKey = configuration["JwtSettings:Key"];
             var key = Encoding.UTF8.GetBytes(jwtKey!);
+
+
+            //Redis
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration["Redis:Configuration"];
+                options.InstanceName = "VoteMe:";
+            });
 
             services.AddAuthentication(options =>
             {
@@ -58,6 +89,58 @@ namespace VoteMe.Infrastructure.Extension
                 };
             });
 
+            //Swagger configuration
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "VoteMe API",
+                    Version = "v1",
+                    Description = "Online Voting Platform API"
+                });
+
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter: Bearer {your token}"
+                });
+
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                 });
+            });
+
+            // Consumers
+            services.AddHostedService<UserRegisteredConsumer>();
+            services.AddHostedService<PasswordChangedConsumer>();
+            services.AddHostedService<OrganizationCreatedConsumer>();
+            services.AddHostedService<MemberJoinedConsumer>();
+            services.AddHostedService<MemberRemovedConsumer>();
+            services.AddHostedService<ElectionCreatedConsumer>();
+            services.AddHostedService<ElectionOpenedConsumer>();
+            services.AddHostedService<ElectionClosedConsumer>();
+            services.AddHostedService<ElectionUpdatedConsumer>();
+            services.AddHostedService<VoteCastConsumer>();
+            services.AddHostedService<VoteChangedConsumer>();
+
+            services.AddSingleton<IMessageBus, MessageBus>();
+            services.AddHostedService<VoteCastConsumer>();
             services.AddAuthorization();
             services.AddHttpContextAccessor();
 

@@ -7,19 +7,20 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using VoteMe.Application.Interface.IToken;
+using VoteMe.Application.Interface.Services;
 using VoteMe.Domain.Entities;
+using VoteMe.Infrastructure.Jwt;
 
-namespace VoteMe.Infrastructure.Jwt
+namespace VoteMe.Infrastructure.Services
 {
-    public class TokenGenerator : ITokenGenerator
+    public class TokenService : ITokenService
     {
 
         private readonly JwtSettings _jwtSettings;
-        private readonly ILogger<TokenGenerator> _logger;
+        private readonly ILogger<TokenService> _logger;
         private readonly UserManager<AppUser> _userManager;
 
-        public TokenGenerator(IOptions<JwtSettings> jwtOptions, UserManager<AppUser> userManager, ILogger<TokenGenerator> logger)
+        public TokenService(IOptions<JwtSettings> jwtOptions, UserManager<AppUser> userManager, ILogger<TokenService> logger)
         {
             _jwtSettings = jwtOptions.Value;
             _logger = logger;
@@ -27,7 +28,7 @@ namespace VoteMe.Infrastructure.Jwt
         }
 
 
-        public async Task<string> GenerateToken(AppUser user)
+        public async Task<string> GenerateAccessToken(AppUser user)
         {
             if (user == null)
             {

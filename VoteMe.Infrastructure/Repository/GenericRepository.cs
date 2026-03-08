@@ -22,11 +22,6 @@ namespace VoteMe.Infrastructure.Repositories
             return await _dbSet.FindAsync(id);
         }
 
-        public async Task<IEnumerable<T>> GetAllAsync()
-        {
-            return await _dbSet.ToListAsync();
-        }
-
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.Where(predicate).ToListAsync();
@@ -79,6 +74,26 @@ namespace VoteMe.Infrastructure.Repositories
         public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.CountAsync(predicate);
+        }
+
+        public async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+            Expression<Func<T, bool>>? predicate = null,
+            int page = 1, 
+            int pageSize = 20)
+        {
+            var query = _dbSet.AsQueryable();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
         }
     }
 }

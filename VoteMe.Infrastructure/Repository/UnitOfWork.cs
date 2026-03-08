@@ -1,10 +1,14 @@
-﻿
+﻿using Microsoft.EntityFrameworkCore.Storage;
 using VoteMe.Application.Interfaces.Repositories;
+using VoteMe.Infrastructure.Data;
 
 namespace VoteMe.Infrastructure.Repository
 {
     public class UnitOfWork : IUnitOfWork
     {
+        private readonly AppDbContext _context;
+        private IDbContextTransaction? _transaction;
+
         public IOrganizationRepository Organizations { get; }
         public IOrganizationMemberRepository OrganizationMembers { get; }
         public IElectionRepository Elections { get; }
@@ -12,29 +16,58 @@ namespace VoteMe.Infrastructure.Repository
         public IVoteRepository Votes { get; }
         public IAuditLogRepository AuditLogs { get; }
 
-        public Task<int> SaveChangesAsync()
+        public UnitOfWork(
+            AppDbContext context,
+            IOrganizationRepository organizations,
+            IOrganizationMemberRepository organizationMembers,
+            IElectionRepository elections,
+            ICandidateRepository candidates,
+            IVoteRepository votes,
+            IAuditLogRepository auditLogs)
         {
-            throw new NotImplementedException();
+            _context = context;
+            Organizations = organizations;
+            OrganizationMembers = organizationMembers;
+            Elections = elections;
+            Candidates = candidates;
+            Votes = votes;
+            AuditLogs = auditLogs;
         }
 
-        public Task BeginTransactionAsync()
+        public async Task<int> SaveChangesAsync()
         {
-            throw new NotImplementedException();
+            return await _context.SaveChangesAsync();
         }
 
-        public Task CommitTransactionAsync()
+        public async Task BeginTransactionAsync()
         {
-            throw new NotImplementedException();
+            _transaction = await _context.Database.BeginTransactionAsync();
         }
 
-        public Task RollbackTransactionAsync()
+        public async Task CommitTransactionAsync()
         {
-            throw new NotImplementedException();
+            if (_transaction != null)
+            {
+                await _transaction.CommitAsync();
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+
+        public async Task RollbackTransactionAsync()
+        {
+            if (_transaction != null)
+            {
+                await _transaction.RollbackAsync();
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            _transaction?.Dispose();
+            _context.Dispose();
         }
     }
 }

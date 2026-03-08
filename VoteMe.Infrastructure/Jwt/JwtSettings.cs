@@ -1,6 +1,4 @@
-﻿
-
-namespace VoteMe.Infrastructure.Jwt
+﻿namespace VoteMe.Infrastructure.Jwt
 {
     public class JwtSettings
     {

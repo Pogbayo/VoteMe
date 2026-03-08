@@ -1,6 +1,6 @@
 ﻿using VoteMe.Domain.Entities;
 
-namespace VoteMe.Application.Interfaces.Repositories
+namespace VoteMe.Application.Interface.IRepositories
 {
     public interface IVoteRepository : IGenericRepository<Vote>
     {
