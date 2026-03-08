@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
-using VoteMe.Application.Interface.Services;
+using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Services
 {

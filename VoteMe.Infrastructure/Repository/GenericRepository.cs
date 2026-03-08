@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using VoteMe.Application.Interfaces.Repositories;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Domain.Interface;
 using VoteMe.Infrastructure.Data;
 

@@ -1,6 +1,6 @@
 ﻿using Amazon.SimpleEmail;
 using Amazon.SimpleEmail.Model;
-using VoteMe.Application.Interface.Services;
+using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Services
 {

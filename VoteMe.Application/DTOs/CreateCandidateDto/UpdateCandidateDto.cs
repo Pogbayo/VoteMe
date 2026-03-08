@@ -1,0 +1,11 @@
+﻿
+namespace VoteMe.Application.DTOs.Candidate
+{
+    public class UpdateCandidateDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Bio { get; set; } = string.Empty;
+        public string PhotoUrl { get; set; } = string.Empty;
+    }
+
+}

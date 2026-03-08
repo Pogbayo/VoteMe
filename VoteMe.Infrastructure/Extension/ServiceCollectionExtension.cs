@@ -140,11 +140,10 @@ namespace VoteMe.Infrastructure.Extension
             services.AddHostedService<VoteChangedConsumer>();
 
             services.AddSingleton<IMessageBus, MessageBus>();
-            services.AddHostedService<VoteCastConsumer>();
             services.AddAuthorization();
             services.AddHttpContextAccessor();
 
             return services;
-        }
+        } 
     }
 }

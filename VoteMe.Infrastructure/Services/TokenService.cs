@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using VoteMe.Application.Interface.Services;
+using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.Jwt;
 

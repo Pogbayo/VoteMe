@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
-using VoteMe.Application.Interfaces.Repositories;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Infrastructure.Data;
 
 namespace VoteMe.Infrastructure.Repository
