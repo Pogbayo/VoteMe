@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using VoteMe.Application.Common.VoteMe.Application.Common;
+using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Auth;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.Events.Auth;
 using VoteMe.Application.Events.Organization;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Application.Mappers.Auth;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
 using VoteMe.Domain.Exceptions;
@@ -23,7 +24,6 @@ namespace VoteMe.Application.Services
         public AuthService(
             UserManager<AppUser> userManager,
             RoleManager<AppRole> roleManager,
-            INotificationService notificationService,
             IMessageBus messageBus,
             IUnitOfWork unitOfWork,
             ITokenService tokenService)
@@ -35,8 +35,19 @@ namespace VoteMe.Application.Services
             _tokenService = tokenService;
         }
 
-        public async Task<ApiResponse<string>> RegisterUserAsync(RegisterUserDto dto)
+        public async Task<ApiResponse<AuthResponseDto>> RegisterUserAsync(RegisterUserDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.Email))
+                throw new BadRequestException("Email is required");
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                throw new BadRequestException("Password is required");
+            if (string.IsNullOrWhiteSpace(dto.FirstName))
+                throw new BadRequestException("First name is required");
+            if (string.IsNullOrWhiteSpace(dto.LastName))
+                throw new BadRequestException("Last name is required");
+            if (string.IsNullOrWhiteSpace(dto.UniqueKey))
+                throw new BadRequestException("Unique key is required");
+
             await _unitOfWork.BeginTransactionAsync();
             try
             {
@@ -48,19 +59,22 @@ namespace VoteMe.Application.Services
                 if (organization == null)
                     throw new BadRequestException("Invalid unique key");
 
+                var displayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? null : dto.DisplayName.Trim();
+
                 var user = new AppUser
                 {
-                    FirstName = dto.FirstName,
-                    LastName = dto.LastName,
-                    Email = dto.Email,
-                    UserName = dto.Email
+                    FirstName = dto.FirstName.Trim(),
+                    LastName = dto.LastName.Trim(),
+                    DisplayName = displayName!,
+                    Email = dto.Email.Trim().ToLower(),
+                    UserName = dto.Email.Trim().ToLower()
                 };
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
                     throw new BadRequestException(result.Errors.First().Description);
 
-                await _userManager.AddToRoleAsync(user, "Voter");
+                await _userManager.AddToRoleAsync(user, Roles.Voter);
 
                 var member = new OrganizationMember
                 {
@@ -77,15 +91,16 @@ namespace VoteMe.Application.Services
                 await _messageBus.PublishAsync("user-registered", new UserRegisteredEvent
                 {
                     UserId = user.Id,
-                    Email = user.Email,
+                    Email = user.Email!,
                     DisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}"
-
                 });
 
                 var roles = await _userManager.GetRolesAsync(user);
-                var token = await _tokenService.GenerateAccessToken(user);
+                var token = await _tokenService.GenerateAccessTokenAsync(user);
 
-                return ApiResponse<string>.SuccessResponse("Registration successful");
+                return ApiResponse<AuthResponseDto>.SuccessResponse(
+                    AuthMapper.ToAuthResponseDto(user, token, roles),
+                    "Registration successful");
             }
             catch
             {
@@ -96,6 +111,17 @@ namespace VoteMe.Application.Services
 
         public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.OrganizationName))
+                throw new BadRequestException("Organization name is required");
+            if (string.IsNullOrWhiteSpace(dto.AdminEmail))
+                throw new BadRequestException("Admin email is required");
+            if (string.IsNullOrWhiteSpace(dto.AdminFirstName))
+                throw new BadRequestException("Admin first name is required");
+            if (string.IsNullOrWhiteSpace(dto.AdminLastName))
+                throw new BadRequestException("Admin last name is required");
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                throw new BadRequestException("Password is required");
+           
             await _unitOfWork.BeginTransactionAsync();
             try
             {
@@ -103,13 +129,15 @@ namespace VoteMe.Application.Services
                 if (existingUser != null)
                     throw new BadRequestException("Email already exists");
 
+                var displayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? null : dto.DisplayName.Trim();
+
                 var adminUser = new AppUser
                 {
-                    FirstName = dto.AdminFirstName,
-                    LastName = dto.AdminLastName,
-                    Email = dto.AdminEmail,
-                    UserName = dto.AdminEmail,
-                    DisplayName = dto.DisplayName
+                    FirstName = dto.AdminFirstName.Trim(),
+                    LastName = dto.AdminLastName.Trim(),
+                    DisplayName = displayName!,
+                    Email = dto.AdminEmail.Trim().ToLower(),
+                    UserName = dto.AdminEmail.Trim().ToLower()
                 };
 
                 var result = await _userManager.CreateAsync(adminUser, dto.Password);
@@ -122,11 +150,11 @@ namespace VoteMe.Application.Services
 
                 var organization = new Organization
                 {
-                    Name = dto.OrganizationName,
-                    Description = dto.Description,
-                    LogoUrl = dto.LogoUrl,
+                    Name = dto.OrganizationName.Trim(),
+                    Description = string.IsNullOrWhiteSpace(dto.Description) ? string.Empty : dto.Description.Trim(),
+                    LogoUrl = string.IsNullOrWhiteSpace(dto.LogoUrl) ? string.Empty : dto.LogoUrl.Trim(),
                     UniqueKey = uniqueKey,
-                    Email = dto.AdminEmail
+                    Email = dto.AdminEmail.Trim().ToLower()
                 };
 
                 await _unitOfWork.Organizations.AddAsync(organization);
@@ -146,24 +174,16 @@ namespace VoteMe.Application.Services
 
                 await _messageBus.PublishAsync("organization-created", new OrganizationCreatedEvent
                 {
-                    OrganizationId = organization.Id,
+                    AdminUserId = adminUser.Id,
                     OrganizationName = organization.Name,
                     AdminEmail = adminUser.Email!,
-                    AdminFullName = $"{adminUser.FirstName} {adminUser.LastName}",
+                    AdminDisplayName = adminUser.DisplayName ?? $"{adminUser.FirstName} {adminUser.LastName}",
                     UniqueKey = uniqueKey
                 });
 
-                return ApiResponse<CreatedOrganizationDto>.SuccessResponse(new CreatedOrganizationDto
-                {
-                    Id = organization.Id,
-                    OrganizationName = organization.Name,
-                    Description = organization.Description,
-                    LogoUrl = organization.LogoUrl,
-                    UniqueKey = uniqueKey,
-                    AdminDisplayName = adminUser.DisplayName,
-                    AdminEmail = adminUser.Email!,
-                    CreatedAt = organization.CreatedAt
-                }, "Organization registered successfully");
+                return ApiResponse<CreatedOrganizationDto>.SuccessResponse(
+                    AuthMapper.ToCreatedOrganizationDto(organization, adminUser, uniqueKey),
+                    "Organization registered successfully");
             }
             catch
             {
@@ -174,7 +194,12 @@ namespace VoteMe.Application.Services
 
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
-            var user = await _userManager.FindByEmailAsync(dto.Email);
+            if (string.IsNullOrWhiteSpace(dto.Email))
+                throw new BadRequestException("Email is required");
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                throw new BadRequestException("Password is required");
+
+            var user = await _userManager.FindByEmailAsync(dto.Email.Trim().ToLower());
             if (user == null)
                 throw new NotFoundException("Invalid email or password");
 
@@ -186,27 +211,27 @@ namespace VoteMe.Application.Services
                 throw new UnauthorizedException("Account has been deactivated");
 
             var roles = await _userManager.GetRolesAsync(user);
-            var token = await _tokenService.GenerateAccessToken(user);
+            var token = await _tokenService.GenerateAccessTokenAsync(user);
 
-            return ApiResponse<AuthResponseDto>.SuccessResponse(new AuthResponseDto
-            {
-                AccessToken = token,
-                Email = user.Email!,
-                FirstName = $"{user.FirstName} {user.LastName}",
-                LastName = $"{user.FirstName} {user.LastName}",
-                UserId = user.Id,
-                Roles = roles.ToList()
-            }, "Login successful");
+            return ApiResponse<AuthResponseDto>.SuccessResponse(
+                AuthMapper.ToAuthResponseDto(user, token, roles),
+                "Login successful");
         }
 
         public async Task<ApiResponse<bool>> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.CurrentPassword))
+                throw new BadRequestException("Current password is required");
+            if (string.IsNullOrWhiteSpace(dto.NewPassword))
+                throw new BadRequestException("New password is required");
+            if (string.IsNullOrWhiteSpace(dto.ConfirmNewPassword))
+                throw new BadRequestException("Confirm password is required");
+            if (dto.NewPassword != dto.ConfirmNewPassword)
+                throw new BadRequestException("Passwords do not match");
+
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 throw new NotFoundException("User not found");
-
-            if (dto.NewPassword != dto.ConfirmNewPassword)
-                throw new BadRequestException("Passwords do not match");
 
             var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
             if (!result.Succeeded)
@@ -219,7 +244,7 @@ namespace VoteMe.Application.Services
             {
                 UserId = user.Id,
                 Email = user.Email!,
-                DisplayName = user.DisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}"
+                DisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}"
             });
 
             return ApiResponse<bool>.SuccessResponse(true, "Password changed successfully");
@@ -236,6 +261,5 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<bool>.SuccessResponse(true, "Logout successful");
         }
-      
     }
 }

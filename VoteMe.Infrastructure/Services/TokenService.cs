@@ -26,7 +26,7 @@ namespace VoteMe.Infrastructure.Services
         }
 
 
-        public async Task<string> GenerateAccessToken(AppUser user)
+        public async Task<string> GenerateAccessTokenAsync(AppUser user)
         {
             if (user == null)
             {
