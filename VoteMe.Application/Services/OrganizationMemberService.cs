@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using VoteMe.Application.Common.VoteMe.Application.Common;
+using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.DTOs.OrganizationMember;
 using VoteMe.Application.Interface.IRepositories;

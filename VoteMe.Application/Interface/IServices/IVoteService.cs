@@ -1,4 +1,4 @@
-﻿using VoteMe.Application.Common.VoteMe.Application.Common;
+﻿using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Election;
 using VoteMe.Application.DTOs.Vote;
 

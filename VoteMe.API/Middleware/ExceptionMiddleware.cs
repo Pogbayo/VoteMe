@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using VoteMe.Application.Common.VoteMe.Application.Common;
+using VoteMe.Application.Common;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.API.Middleware

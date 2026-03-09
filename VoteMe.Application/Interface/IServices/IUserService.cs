@@ -1,5 +1,5 @@
 ﻿
-using VoteMe.Application.Common.VoteMe.Application.Common;
+using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.User;
 
 namespace VoteMe.Application.Interface.IServices
