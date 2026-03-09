@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Auth;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Auth
@@ -36,11 +37,23 @@ namespace VoteMe.Infrastructure.Consumers.Auth
                 using var scope = _scopeFactory.CreateScope();
                 var notificationService = scope.ServiceProvider
                     .GetRequiredService<INotificationService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
+
+                var fullName = eventData.FirstName+" "+eventData.LastName;
                 await notificationService.SendWelcomeEmailAsync(
                     new List<string> { eventData.Email },
-                    eventData.FullName
+                   eventData.DisplayName ?? fullName
                 );
+
+                await unitOfWork.AuditLogs.LogAsync(
+                   eventData.UserId,
+                   "UserRegistered",
+                   "AppUser",
+                   $"User '{eventData.DisplayName}' registered successfully"
+                );
+
+                await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };

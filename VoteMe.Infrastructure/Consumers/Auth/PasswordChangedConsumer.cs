@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Auth;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Auth
@@ -34,14 +35,21 @@ namespace VoteMe.Infrastructure.Consumers.Auth
                 if (eventData == null) return;
 
                 using var scope = _scopeFactory.CreateScope();
-                var notificationService = scope.ServiceProvider
-                    .GetRequiredService<INotificationService>();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 await notificationService.SendPasswordChangedEmailAsync(
                     new List<string> { eventData.Email },
-                    eventData.FullName
+                    eventData.DisplayName
                 );
 
+                await unitOfWork.AuditLogs.LogAsync(
+                   eventData.UserId,
+                   "PasswordChanged",
+                   "AppUser",
+                   $"User '{eventData.DisplayName}' changed their password"
+               );
+                await unitOfWork.SaveChangesAsync();
                 Channel.BasicAck(args.DeliveryTag, false);
             };
 

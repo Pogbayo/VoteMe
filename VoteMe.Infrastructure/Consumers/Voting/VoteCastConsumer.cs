@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Voting;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Voting
@@ -35,33 +36,40 @@ namespace VoteMe.Infrastructure.Consumers.Voting
                 if (eventData == null) return;
 
                 using var scope = _scopeFactory.CreateScope();
-                var notificationService = scope.ServiceProvider
-                    .GetRequiredService<INotificationService>();
-                var cacheService = scope.ServiceProvider
-                    .GetRequiredService<ICacheService>();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<Hub>>();
 
                 await cacheService.RemoveAsync($"election-results-{eventData.ElectionId}");
 
                 await notificationService.SendVoteConfirmationEmailAsync(
                     new List<string> { eventData.VoterEmail },
-                    eventData.VoterFullName,
-                    eventData.ElectionTitle,
-                    eventData.CandidateName
+                    eventData.VoterDisplayName,
+                    eventData.ElectionName,
+                    eventData.CandidateFirstName
                 );
 
-                var hubContext = scope.ServiceProvider
-                   .GetRequiredService<IHubContext<Hub>>();
+                await unitOfWork.AuditLogs.LogAsync(
+                     eventData.UserId ?? Guid.Empty,
+                     "VoteCast",
+                     "Vote",
+                     $"User voted for '{eventData.CandidateFirstName} {eventData.CandidateLastName}' in election '{eventData.ElectionName}'"
+                 );
+                await unitOfWork.SaveChangesAsync();
 
-                await hubContext.Clients.All
-                    .SendAsync("VoteUpdated", new
-                    {
-                        ElectionId = eventData.ElectionId,
-                        CandidateId = eventData.CandidateId,
-                        CandidateName = eventData.CandidateName,
-                        VoterId = eventData.IsPrivate ? null : (Guid?)eventData.UserId,
-                        VoterName = eventData.IsPrivate ? "Anonymous" : eventData.VoterFullName,
-                        UpdatedAt = DateTime.UtcNow
-                    });
+                var fullName = eventData.CandidateFirstName + "" + eventData.CandidateLastName;
+
+                await hubContext.Clients.All.SendAsync("VoteUpdated", new
+                {
+                    ElectionId = eventData.ElectionId,
+                    ElectionCategoryId = eventData.ElectionCategoryId,
+                    CandidateId = eventData.CandidateId,
+                    CandidateName = $"{eventData.CandidateFirstName} {eventData.CandidateLastName}",
+                    VoterId = eventData.IsPrivate ? null : (Guid?)eventData.UserId,
+                    VoterName = eventData.IsPrivate ? "Anonymous" : eventData.VoterDisplayName,
+                    UpdatedAt = DateTime.UtcNow
+                });
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };

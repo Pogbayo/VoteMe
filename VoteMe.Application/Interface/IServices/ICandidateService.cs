@@ -5,9 +5,10 @@ namespace VoteMe.Application.Interface.IServices
 {
     public interface ICandidateService
     {
+        Task<ApiResponse<CandidateDto>> GetCandidateAsync(Guid candidateId);
         Task<ApiResponse<CandidateDto>> AddCandidateAsync(Guid electionId, CreateCandidateDto dto);
         Task<ApiResponse<CandidateDto>> UpdateCandidateAsync(Guid candidateId, UpdateCandidateDto dto);
         Task<ApiResponse<bool>> DeleteCandidateAsync(Guid candidateId);
-        Task<ApiResponse<IEnumerable<CandidateDto>>> GetElectionCandidatesAsync(Guid electionId);
+        Task<ApiResponse<IEnumerable<CandidateDto>>> GetCategoryCandidatesAsync(Guid electionCategoryId);
     }
 }

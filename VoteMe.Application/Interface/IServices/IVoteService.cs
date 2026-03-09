@@ -10,5 +10,6 @@ namespace VoteMe.Application.Interface.IServices
         Task<ApiResponse<VoteResultDto>> ChangeVoteAsync(Guid userId, ChangeVoteDto dto);
         Task<ApiResponse<bool>> HasUserVotedAsync(Guid userId, Guid electionId);
         Task<ApiResponse<ElectionResultDto>> GetLiveResultsAsync(Guid electionId);
+        Task<ApiResponse<ElectionResultDto>> GetElectionResultsAsync(Guid electionId);
     }
 }

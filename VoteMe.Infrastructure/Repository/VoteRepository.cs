@@ -54,5 +54,10 @@ namespace VoteMe.Infrastructure.Repository
             return await _dbSet
                 .AnyAsync(v => v.VoterId == userId && v.ElectionId == electionId);
         }
+
+        Task IVoteRepository.ChangeVoteAsync(Guid userId, Guid electionCategoryId, Guid newCandidateId)
+        {
+            return ChangeVoteAsync(userId, electionCategoryId, newCandidateId);
+        }
     }
 }

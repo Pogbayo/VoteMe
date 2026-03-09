@@ -5,8 +5,6 @@ namespace VoteMe.Application.Interface.IRepositories
 {
     public interface IElectionRepository : IGenericRepository<Election>
     {
-        Task<Election?> GetWithCandidatesAsync(Guid electionId);
-        Task<Election?> GetWithVotesAsync(Guid electionId);
         Task<Election?> GetFullElectionAsync(Guid electionId);
         Task<(IEnumerable<Election> Items, int TotalCount)> GetOrganizationElectionsAsync(
             Guid organizationId,

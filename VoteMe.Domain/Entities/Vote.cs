@@ -4,9 +4,11 @@
     {
         public Guid CandidateId { get; set; }
         public Candidate Candidate { get; set; } = null!;
+        public Guid ElectionCategoryId { get; set; }
+        public ElectionCategory ElectionCategory { get; set; } = null!;
         public Guid ElectionId { get; set; }
         public Election Election { get; set; } = null!;
-        public Guid VoterId { get; set; } 
-        public AppUser Voter { get; set; } = null!; 
+        public Guid VoterId { get; set; }
+        public AppUser Voter { get; set; } = null!;
     }
 }

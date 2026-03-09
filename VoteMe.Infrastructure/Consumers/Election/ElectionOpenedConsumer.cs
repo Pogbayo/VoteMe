@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Election;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Election
@@ -36,12 +37,22 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 using var scope = _scopeFactory.CreateScope();
                 var notificationService = scope.ServiceProvider
                     .GetRequiredService<INotificationService>();
+                var unitOfWork = scope.ServiceProvider
+                    .GetRequiredService<IUnitOfWork>();
 
                 await notificationService.SendElectionOpenedEmailAsync(
                     eventData.MemberEmails,
-                    eventData.ElectionTitle,
+                    eventData.ElectionName,
                     eventData.OrganizationName
                 );
+
+                await unitOfWork.AuditLogs.LogAsync(
+                    eventData.OpenedByUserId,
+                    "ElectionOpened",
+                    "Election",
+                    $"Election '{eventData.ElectionName}' opened in '{eventData.OrganizationName}'"
+                );
+                await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };

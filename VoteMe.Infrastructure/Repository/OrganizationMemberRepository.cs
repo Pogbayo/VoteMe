@@ -1,9 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using VoteMe.Application.Interface.IRepositories;
-using VoteMe.Domain.Entities;
+﻿using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using VoteMe.Infrastructure.Repositories;
-
+using VoteMe.Application.Interface.IRepositories;
 namespace VoteMe.Infrastructure.Repository
 {
     public class OrganizationMemberRepository : GenericRepository<OrganizationMember>, IOrganizationMemberRepository
@@ -49,6 +48,18 @@ namespace VoteMe.Infrastructure.Repository
             return await _dbSet
                 .AnyAsync(om => om.UserId == userId
                     && om.OrganizationId == organizationId);
+        }
+
+        public async Task JoinOrganizationAsync(Guid userId, Guid organizationId)
+        {
+            var member = new OrganizationMember
+            {
+                UserId = userId,
+                OrganizationId = organizationId,
+                IsAdmin = false,
+                JoinedAt = DateTime.UtcNow
+            };
+            await _dbSet.AddAsync(member);
         }
     }
 }

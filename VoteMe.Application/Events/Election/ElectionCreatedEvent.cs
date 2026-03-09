@@ -1,13 +1,13 @@
-﻿
-
-namespace VoteMe.Application.Events.Election
+﻿namespace VoteMe.Application.Events.Election
 {
     public class ElectionCreatedEvent
     {
         public Guid ElectionId { get; set; }
         public Guid OrganizationId { get; set; }
-        public string ElectionTitle { get; set; } = string.Empty;
+        public Guid CreatedByUserId { get; set; }
+        public string ElectionName { get; set; } = string.Empty;
         public string OrganizationName { get; set; } = string.Empty;
+        public List<string> ElectionCategoryNames { get; set; } = new();
         public List<string> MemberEmails { get; set; } = new();
     }
 }

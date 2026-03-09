@@ -2,11 +2,14 @@
 {
     public class Candidate : BaseEntity
     {
-        public string FullName { get; set; } = string.Empty;
-        public string Bio { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
+        public string? Bio { get; set; } 
         public string PhotoUrl { get; set; } = string.Empty;
-        public Guid ElectionId { get; set; }
         public Election Election { get; set; } = null!;
+        public Guid ElectionCategoryId { get; set; }
+        public ElectionCategory ElectionCategory { get; set; } = null!;
         public ICollection<Vote> Votes { get; set; } = new List<Vote>();
     }
 }

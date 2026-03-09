@@ -9,5 +9,6 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<IEnumerable<OrganizationMember>> GetUserOrganizationsAsync(Guid userId);
         Task<bool> IsMemberAsync(Guid userId, Guid organizationId);
         Task<bool> IsAdminAsync(Guid userId, Guid organizationId);
+        Task JoinOrganizationAsync(Guid userId, Guid organizationId);
     }
 }

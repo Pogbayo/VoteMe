@@ -1,12 +1,21 @@
-﻿using VoteMe.Application.Common.VoteMe.Application.Common;
+﻿using Microsoft.Extensions.Logging;
+using VoteMe.Application.Common.VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.DTOs.OrganizationMember;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Application.Services
 {
-    public class OrganizationMember : IOrganizationMemberService
+    public class OrganizationMemberService : IOrganizationMemberService
     {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<OrganizationMemberService> _logger;
+        public OrganizationMemberService(IUnitOfWork unitOfWork, ILogger<OrganizationMemberService> logger)
+        {
+            _logger = logger;
+            _unitOfWork = unitOfWork;
+        }
         public Task<ApiResponse<bool>> DemoteFromAdminAsync(Guid organizationId, Guid userId)
         {
             throw new NotImplementedException();
@@ -18,6 +27,16 @@ namespace VoteMe.Application.Services
         }
 
         public Task<ApiResponse<IEnumerable<OrganizationDto>>> GetUserOrganizationsAsync(Guid userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ApiResponse<bool>> JoinOrganizationAsync(Guid userId, string uniqueKey)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ApiResponse<bool>> LeaveOrganizationAsync(Guid organizationId, Guid userId)
         {
             throw new NotImplementedException();
         }

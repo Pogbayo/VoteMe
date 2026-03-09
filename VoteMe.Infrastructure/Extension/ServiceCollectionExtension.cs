@@ -14,11 +14,13 @@ using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.AWS;
 using VoteMe.Infrastructure.Consumers;
 using VoteMe.Infrastructure.Consumers.Auth;
+using VoteMe.Infrastructure.Consumers.Candidate;
 using VoteMe.Infrastructure.Consumers.Election;
 using VoteMe.Infrastructure.Consumers.Organization;
 using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
 using VoteMe.Infrastructure.Services;
+using VoteMe.Infrastructure.Settings;
 
 namespace VoteMe.Infrastructure.Extension
 {
@@ -32,6 +34,7 @@ namespace VoteMe.Infrastructure.Extension
             {
                 throw new InvalidOperationException("Connection string not found. Check user secrets.");
             }
+            services.Configure<SuperAdminSettings>(configuration.GetSection("SuperAdmin"));
 
             //AWS Settings
             services.Configure<AwsSettings>(configuration.GetSection("AWS"));
@@ -166,6 +169,9 @@ namespace VoteMe.Infrastructure.Extension
             services.AddHostedService<ElectionUpdatedConsumer>();
             services.AddHostedService<VoteCastConsumer>();
             services.AddHostedService<VoteChangedConsumer>();
+            services.AddHostedService<CandidateAddedConsumer>();
+            services.AddHostedService<CandidateUpdatedConsumer>();
+            services.AddHostedService<CandidateDeletedConsumer>();
 
             services.AddSingleton<IMessageBus, MessageBus>();
             services.AddAuthorization();

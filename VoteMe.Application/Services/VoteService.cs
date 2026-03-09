@@ -18,6 +18,11 @@ namespace VoteMe.Application.Services
             throw new NotImplementedException();
         }
 
+        public Task<ApiResponse<ElectionResultDto>> GetElectionResultsAsync(Guid electionId)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<ApiResponse<ElectionResultDto>> GetLiveResultsAsync(Guid electionId)
         {
             throw new NotImplementedException();

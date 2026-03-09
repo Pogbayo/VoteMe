@@ -44,10 +44,7 @@ namespace VoteMe.Application.Services
              int page = 1,
              int pageSize = 20)
         {
-            // GetPagedAsync lives in GenericRepository
-            // ElectionRepository inherits it
-            // _unitOfWork.Elections points to ElectionRepository
-            // which has _dbSet pointing at Elections table
+            
             var (elections, totalCount) = await _unitOfWork.Elections.GetPagedAsync(
                 predicate: e => e.OrganizationId == organizationId,
                 page: page,
@@ -57,11 +54,11 @@ namespace VoteMe.Application.Services
             var electionDtos = elections.Select(e => new ElectionDto
             {
                 Id = e.Id,
-                Title = e.Title,
+                Name = e.Name,
                 Description = e.Description,
                 StartDate = e.StartDate,
                 EndDate = e.EndDate,
-                Status = e.Status.ToString(),
+                Status = e.Status,
                 IsPrivate = e.IsPrivate,
                 OrganizationId = e.OrganizationId,
                 CreatedAt = e.CreatedAt
@@ -72,7 +69,6 @@ namespace VoteMe.Application.Services
                 "Elections retrieved successfully"
             );
         }
-
 
         public Task<ApiResponse<ElectionDto>> OpenElectionAsync(Guid electionId)
         {

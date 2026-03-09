@@ -4,6 +4,7 @@
     {
         IOrganizationRepository Organizations { get; }
         IOrganizationMemberRepository OrganizationMembers { get; }
+        IElectionCategoryRepository ElectionCategories { get; }
         IElectionRepository Elections { get; }
         ICandidateRepository Candidates { get; }
         IVoteRepository Votes { get; }

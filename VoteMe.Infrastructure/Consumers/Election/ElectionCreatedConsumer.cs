@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Election;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Election
@@ -34,14 +35,23 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 if (eventData == null) return;
 
                 using var scope = _scopeFactory.CreateScope();
-                var notificationService = scope.ServiceProvider
-                    .GetRequiredService<INotificationService>();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                await notificationService.SendElectionOpenedEmailAsync(
-                    eventData.MemberEmails,
-                    eventData.ElectionTitle,
-                    eventData.OrganizationName
+                await notificationService.SendElectionCreatedEmailAsync(
+                     eventData.MemberEmails,
+                     eventData.ElectionName,
+                     eventData.OrganizationName,
+                     eventData.ElectionCategoryNames
+                 );
+
+                await unitOfWork.AuditLogs.LogAsync(
+                    eventData.CreatedByUserId,
+                    "ElectionCreated",
+                    "Election",
+                    $"Election '{eventData.ElectionName}' created with {eventData.ElectionCategoryNames.Count} categories in '{eventData.OrganizationName}'"
                 );
+                await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };

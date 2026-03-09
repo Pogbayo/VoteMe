@@ -4,7 +4,8 @@
     public class ElectionUpdatedEvent
     {
         public Guid ElectionId { get; set; }
-        public Guid OrganizationId { get; set; }
-        public string ElectionTitle { get; set; } = string.Empty;
+        public Guid UpdatedByUserId { get; set; }
+        public string ElectionName { get; set; } = string.Empty;
+        public string OrganizationName { get; set; } = string.Empty;
     }
 }

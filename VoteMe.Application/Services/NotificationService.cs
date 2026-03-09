@@ -1,4 +1,5 @@
-﻿using VoteMe.Application.Helpers;
+﻿using VoteMe.Application.DTOs.ElectionCategory;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IServices;
 
 public class NotificationService : INotificationService
@@ -52,12 +53,6 @@ public class NotificationService : INotificationService
         await _emailService.SendEmailAsync(emails, subject, body);
     }
 
-    public async Task SendElectionResultsEmailAsync(List<string> emails, string electionTitle, string winnerName, int totalVotes)
-    {
-        var (subject, body) = EmailTemplates.ElectionResultsEmail(electionTitle, winnerName, totalVotes);
-        await _emailService.SendEmailAsync(emails, subject, body);
-    }
-
     public async Task SendOrganizationCreatedEmailAsync(List<string> emails, string fullName, string organizationName, string uniqueKey)
     {
         var (subject, body) = EmailTemplates.OrganizationCreatedEmail(fullName, organizationName, uniqueKey);
@@ -68,5 +63,39 @@ public class NotificationService : INotificationService
     {
         var (subject, body) = EmailTemplates.WelcomeToOrganizationEmail(fullName, organizationName);
         await _emailService.SendEmailAsync(emails, subject, body);
+    }
+
+    public async Task<bool> SendElectionResultsEmailAsync(List<string> emails, string electionName,List<ElectionCategoryResultDto> categoryResults,int totalVotes)
+    {
+        var (subject, body) = EmailTemplates.ElectionResultsEmail(electionName, categoryResults, totalVotes);
+        return await _emailService.SendEmailAsync(emails, subject, body);
+    }
+
+    public async Task<bool> SendElectionCreatedEmailAsync( List<string> emails,string electionName,string organizationName,List<string> categoryNames)
+    {
+        var (subject, body) = EmailTemplates.ElectionCreatedEmail(electionName, organizationName, categoryNames);
+        return await _emailService.SendEmailAsync(emails, subject, body);
+    }
+
+    public async Task<bool> SendCandidateAddedEmailAsync(
+        List<string> emails,
+        string candidateName,
+        string electionCategoryName,
+        string electionName,
+        string organizationName)
+    {
+        var (subject, body) = EmailTemplates.CandidateAddedEmail(candidateName, electionCategoryName, electionName, organizationName);
+        return await _emailService.SendEmailAsync(emails, subject, body);
+    }
+
+    public async Task<bool> SendCandidateDeletedEmailAsync(
+        List<string> emails,
+        string candidateName,
+        string electionCategoryName,
+        string electionName,
+        string organizationName)
+    {
+        var (subject, body) = EmailTemplates.CandidateDeletedEmail(candidateName, electionCategoryName, electionName, organizationName);
+        return await _emailService.SendEmailAsync(emails, subject, body);
     }
 }

@@ -1,17 +1,23 @@
-﻿using VoteMe.Domain.Entities;
-
+﻿
 namespace VoteMe.Application.Events.Voting
 {
     public class VoteCastEvent
     {
         public Guid ElectionId { get; set; }
-        public string ElectionTitle { get; set; } = string.Empty;
+        public string ElectionName { get; set; } = string.Empty;
+        public Guid ElectionCategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
         public Guid CandidateId { get; set; }
-        public string CandidateName { get; set; } = string.Empty;
-        public Guid UserId { get; set; }
+        public string CandidateFirstName { get; set; } = string.Empty;
+        public string CandidateLastName { get; set; } = string.Empty;
+        public string CandidateFullName { get; set; } = string.Empty;
+        public string? CandidateDisplayName { get; set; }
+        public Guid? UserId { get; set; }
+        public string VoterFirstName { get; set; } = string.Empty;
+        public string VoterLastName { get; set; } = string.Empty;
+        public string VoterDisplayName { get; set; } = string.Empty;
         public string VoterEmail { get; set; } = string.Empty;
-        public string VoterFullName { get; set; } = string.Empty;
-        public DateTime VotedAt { get; set; } = DateTime.UtcNow;
         public bool IsPrivate { get; set; }
+        public DateTime VotedAt { get; set; } = DateTime.UtcNow;
     }
 }

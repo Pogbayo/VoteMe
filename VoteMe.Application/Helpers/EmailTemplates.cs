@@ -1,4 +1,6 @@
-﻿namespace VoteMe.Application.Helpers
+﻿using VoteMe.Application.DTOs.ElectionCategory;
+
+namespace VoteMe.Application.Helpers
 {
     public static class EmailTemplates
     {
@@ -46,13 +48,13 @@
             );
         }
 
-        public static (string Subject, string Body) ElectionOpenedEmail(string electionTitle, string organizationName)
+        public static (string Subject, string Body) ElectionOpenedEmail(string electionName, string organizationName)
         {
             return (
-                Subject: $"Election '{electionTitle}' is now open!",
+                Subject: $"Election '{electionName}' is now open!",
                 Body: $@"
             <h2>Attention!</h2>
-            <p>The election <strong>{electionTitle}</strong> in <strong>{organizationName}</strong> is now open.</p>
+            <p>The election <strong>{electionName}</strong> in <strong>{organizationName}</strong> is now open.</p>
             <p>Log in to VoteMe to cast your vote before it closes.</p>
             <br/>
             <p>The VoteMe Team</p>
@@ -60,13 +62,13 @@
             );
         }
 
-        public static (string Subject, string Body) ElectionClosedEmail(string electionTitle, string organizationName)
+        public static (string Subject, string Body) ElectionClosedEmail(string electionName, string organizationName)
         {
             return (
-                Subject: $"Election '{electionTitle}' has closed",
+                Subject: $"Election '{electionName}' has closed",
                 Body: $@"
             <h2>Attention!</h2>
-            <p>The election <strong>{electionTitle}</strong> in <strong>{organizationName}</strong> has now closed.</p>
+            <p>The election <strong>{electionName}</strong> in <strong>{organizationName}</strong> has now closed.</p>
             <p>Log in to VoteMe to view the final results.</p>
             <br/>
             <p>The VoteMe Team</p>
@@ -74,13 +76,13 @@
             );
         }
 
-        public static (string Subject, string Body) VoteConfirmationEmail(string fullName, string electionTitle, string candidateName)
+        public static (string Subject, string Body) VoteConfirmationEmail(string fullName, string electionName, string candidateName)
         {
             return (
-                Subject: $"Vote Confirmation - {electionTitle}",
+                Subject: $"Vote Confirmation - {electionName}",
                 Body: $@"
                     <h2>Hi {fullName},</h2>
-                    <p>Your vote has been successfully cast in <strong>{electionTitle}</strong>.</p>
+                    <p>Your vote has been successfully cast in <strong>{electionName}</strong>.</p>
                     <p>Thank you for participating in this election.</p>
                     <br/>
                     <p>The VoteMe Team</p>
@@ -88,13 +90,13 @@
             );
         }
 
-        public static (string Subject, string Body) VoteChangedEmail(string fullName, string electionTitle, string newCandidateName)
+        public static (string Subject, string Body) VoteChangedEmail(string fullName, string electionName, string newCandidateName)
         {
             return (
-                Subject: $"Vote Changed - {electionTitle}",
+                Subject: $"Vote Changed - {electionName}",
                 Body: $@"
                     <h2>Hi {fullName},</h2>
-                    <p>Your vote in <strong>{electionTitle}</strong> has been successfully updated.</p>
+                    <p>Your vote in <strong>{electionName}</strong> has been successfully updated.</p>
                     <p>If you did not make this change, please contact support immediately.</p>
                     <br/>
                     <p>The VoteMe Team</p>
@@ -116,16 +118,68 @@
             );
         }
 
-        public static (string Subject, string Body) ElectionResultsEmail(string electionTitle, string winnerName, int totalVotes)
+        public static (string Subject, string Body) ElectionResultsEmail(
+           string electionName,
+           List<ElectionCategoryResultDto> categoryResults,
+           int totalVotes)
         {
+            var resultsTable = string.Join("", categoryResults.Select(c =>
+            {
+                var winnerName = c.Winner?.DisplayName
+                    ?? $"{c.Winner?.FirstName} {c.Winner?.LastName}"
+                    ?? "No winner";
+
+                return $@"
+            <tr>
+                <td style='padding:8px;border:1px solid #ddd'>{c.ElectionCategoryName}</td>
+                <td style='padding:8px;border:1px solid #ddd'>{winnerName}</td>
+                <td style='padding:8px;border:1px solid #ddd'>{c.TotalVotes}</td>
+            </tr>";
+            }));
+
             return (
-                Subject: $"Results - {electionTitle}",
+                Subject: $"Results - {electionName}",
                 Body: $@"
             <h2>Election Results</h2>
-            <p>The results for <strong>{electionTitle}</strong> are in!</p>
-            <h3>Winner: {winnerName}</h3>
+            <p>The results for <strong>{electionName}</strong> are in!</p>
             <p>Total votes cast: <strong>{totalVotes}</strong></p>
+            <h3>Winners by ElectionCategory:</h3>
+            <table style='border-collapse:collapse;width:100%'>
+                <thead>
+                    <tr>
+                        <th style='padding:8px;border:1px solid #ddd;background:#f4f4f4'>ElectionCategory</th>
+                        <th style='padding:8px;border:1px solid #ddd;background:#f4f4f4'>Winner</th>
+                        <th style='padding:8px;border:1px solid #ddd;background:#f4f4f4'>Votes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {resultsTable}
+                </tbody>
+            </table>
             <p>Thank you for participating.</p>
+            <br/>
+            <p>The VoteMe Team</p>
+        "
+            );
+        }
+
+        public static (string Subject, string Body) ElectionCreatedEmail(
+            string electionName,
+            string organizationName,
+            List<string> categoryNames)
+        {
+            var categoriesList = string.Join("", categoryNames.Select(c => $"<li>{c}</li>"));
+
+            return (
+                Subject: $"New Election - {electionName}",
+                Body: $@"
+            <h2>New Election Created</h2>
+            <p>A new election <strong>{electionName}</strong> has been created in <strong>{organizationName}</strong>.</p>
+            <p>The following categories are available:</p>
+            <ul>
+                {categoriesList}
+            </ul>
+            <p>Voting will begin soon. Stay tuned!</p>
             <br/>
             <p>The VoteMe Team</p>
         "
@@ -145,6 +199,46 @@
                     <br/>
                     <p>The VoteMe Team</p>
                 "
+            );
+        }
+
+        public static (string Subject, string Body) CandidateAddedEmail(
+            string candidateName,
+            string electionCategoryName,
+            string electionName,
+            string organizationName)
+        {
+            return (
+                Subject: $"New Candidate Added - {electionName}",
+                Body: $@"
+            <h2>New Candidate Added</h2>
+            <p>A new candidate <strong>{candidateName}</strong> has been added to the 
+            <strong>{electionCategoryName}</strong> category in election <strong>{electionName}</strong> 
+            at <strong>{organizationName}</strong>.</p>
+            <p>Log in to VoteMe to view the updated candidate list.</p>
+            <br/>
+            <p>The VoteMe Team</p>
+        "
+            );
+        }
+
+        public static (string Subject, string Body) CandidateDeletedEmail(
+            string candidateName,
+            string electionCategoryName,
+            string electionName,
+            string organizationName)
+        {
+            return (
+                Subject: $"Candidate Removed - {electionName}",
+                Body: $@"
+            <h2>Candidate Removed</h2>
+            <p>The candidate <strong>{candidateName}</strong> has been removed from the 
+            <strong>{electionCategoryName}</strong> category in election <strong>{electionName}</strong> 
+            at <strong>{organizationName}</strong>.</p>
+            <p>Log in to VoteMe to view the updated candidate list.</p>
+            <br/>
+            <p>The VoteMe Team</p>
+        "
             );
         }
     }

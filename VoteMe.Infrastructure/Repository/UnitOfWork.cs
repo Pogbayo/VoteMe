@@ -15,6 +15,7 @@ namespace VoteMe.Infrastructure.Repository
         public ICandidateRepository Candidates { get; }
         public IVoteRepository Votes { get; }
         public IAuditLogRepository AuditLogs { get; }
+        public IElectionCategoryRepository ElectionCategories{ get; }
 
         public UnitOfWork(
             AppDbContext context,
@@ -23,6 +24,7 @@ namespace VoteMe.Infrastructure.Repository
             IElectionRepository elections,
             ICandidateRepository candidates,
             IVoteRepository votes,
+            IElectionCategoryRepository electionCategories,
             IAuditLogRepository auditLogs)
         {
             _context = context;
@@ -32,6 +34,7 @@ namespace VoteMe.Infrastructure.Repository
             Candidates = candidates;
             Votes = votes;
             AuditLogs = auditLogs;
+            ElectionCategories = electionCategories;
         }
 
         public async Task<int> SaveChangesAsync()

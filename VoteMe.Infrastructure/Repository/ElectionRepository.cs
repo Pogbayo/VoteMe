@@ -27,11 +27,11 @@ namespace VoteMe.Infrastructure.Repository
                 .ToListAsync();
         }
 
-        public async Task<Election?> GetFullElectionAsync(Guid electionId)
+        public async Task<Election?> GetWithCategoriesAsync(Guid electionId)
         {
             return await _dbSet
-                .Include(e => e.Candidates)
-                    .ThenInclude(c => c.Votes)
+                .Include(e => e.Categories)
+                    .ThenInclude(ec => ec.Candidates)
                 .Include(e => e.Organization)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }
@@ -48,17 +48,15 @@ namespace VoteMe.Infrastructure.Repository
             );
         }
 
-        public async Task<Election?> GetWithCandidatesAsync(Guid electionId)
+        public async Task<Election?> GetFullElectionAsync(Guid electionId)
         {
             return await _dbSet
-                .Include(e => e.Candidates)
-                .FirstOrDefaultAsync(e => e.Id == electionId);
-        }
-
-        public async Task<Election?> GetWithVotesAsync(Guid electionId)
-        {
-            return await _dbSet
-                .Include(e => e.Votes)
+                .Include(e => e.Categories)
+                    .ThenInclude(ec => ec.Candidates)
+                        .ThenInclude(c => c.Votes)
+                .Include(e => e.Categories)
+                    .ThenInclude(ec => ec.Votes)
+                .Include(e => e.Organization)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }
     }

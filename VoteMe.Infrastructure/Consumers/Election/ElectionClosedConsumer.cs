@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Election;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.Election
@@ -34,21 +35,29 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 if (eventData == null) return;
 
                 using var scope = _scopeFactory.CreateScope();
-                var notificationService = scope.ServiceProvider
-                    .GetRequiredService<INotificationService>();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
                 await notificationService.SendElectionClosedEmailAsync(
-                    eventData.MemberEmails,
-                    eventData.ElectionTitle,
-                    eventData.OrganizationName
+                   eventData.MemberEmails,
+                   eventData.ElectionName,
+                   eventData.OrganizationName
                 );
 
                 await notificationService.SendElectionResultsEmailAsync(
-                    eventData.MemberEmails,
-                    eventData.ElectionTitle,
-                    eventData.WinnerName,
-                    eventData.TotalVotes
+                   eventData.MemberEmails,
+                   eventData.ElectionName,
+                   eventData.CategoryResults,
+                   eventData.TotalVotes
                 );
+
+                await unitOfWork.AuditLogs.LogAsync(
+                    eventData.ClosedByUserId,
+                    "ElectionClosed",
+                    "Election",
+                    $"Election '{eventData.ElectionName}' closed with {eventData.TotalVotes} total votes"
+                );
+                await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };
