@@ -1,12 +1,12 @@
-﻿namespace VoteMe.Application.DTOs.Auth
+﻿namespace VoteMe.Application.DTOs.User
 {
-    public class AuthResponseDto
+    public class UserDto
     {
+        public Guid Id { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public Guid UserId { get; set; }
-        public string AccessToken { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public List<string> Roles { get; set; } = new();
+        public DateTime CreatedAt { get; set; }
     }
 }

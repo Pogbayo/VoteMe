@@ -12,5 +12,6 @@ namespace VoteMe.Application.Events.Voting
         public string VoterEmail { get; set; } = string.Empty;
         public string VoterFullName { get; set; } = string.Empty;
         public DateTime VotedAt { get; set; } = DateTime.UtcNow;
+        public bool IsPrivate { get; set; }
     }
 }

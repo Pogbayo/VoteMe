@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
@@ -47,6 +48,20 @@ namespace VoteMe.Infrastructure.Consumers.Voting
                     eventData.ElectionTitle,
                     eventData.CandidateName
                 );
+
+                var hubContext = scope.ServiceProvider
+                   .GetRequiredService<IHubContext<Hub>>();
+
+                await hubContext.Clients.All
+                    .SendAsync("VoteUpdated", new
+                    {
+                        ElectionId = eventData.ElectionId,
+                        CandidateId = eventData.CandidateId,
+                        CandidateName = eventData.CandidateName,
+                        VoterId = eventData.IsPrivate ? null : (Guid?)eventData.UserId,
+                        VoterName = eventData.IsPrivate ? "Anonymous" : eventData.VoterFullName,
+                        UpdatedAt = DateTime.UtcNow
+                    });
 
                 Channel.BasicAck(args.DeliveryTag, false);
             };

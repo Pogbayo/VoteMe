@@ -1,4 +1,5 @@
-﻿using VoteMe.API.Middleware;
+﻿using VoteMe.API.Hubs;
+using VoteMe.API.Middleware;
 
 namespace VoteMe.API.Extension
 {
@@ -16,6 +17,7 @@ namespace VoteMe.API.Extension
         {
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseAuthentication();
+            app.MapHub<ElectionHub>("/hubs/election");
             app.UseAuthorization();
             app.UseSwagger();
             app.UseSwaggerUI();

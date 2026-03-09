@@ -1,4 +1,4 @@
-﻿using VoteMe.Application.DTOs.CreateCandidateDto;
+﻿using VoteMe.Application.DTOs.Candidate;
 
 namespace VoteMe.Application.DTOs.Election
 {

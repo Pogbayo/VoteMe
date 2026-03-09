@@ -1,6 +1,4 @@
-﻿
-
-namespace VoteMe.Domain.Entities
+﻿namespace VoteMe.Domain.Entities
 {
     public class Vote : BaseEntity
     {

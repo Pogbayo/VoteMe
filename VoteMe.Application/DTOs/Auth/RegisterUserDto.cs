@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace VoteMe.Application.DTOs.Auth
+﻿namespace VoteMe.Application.DTOs.Auth
 {
-    internal class RegisterUserDto
+    public class RegisterUserDto
     {
+        public string FirstName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string UniqueKey { get; set; } = string.Empty;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Claims;
+using System.Text;
 using Amazon.SimpleEmail;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -11,6 +12,7 @@ using Microsoft.OpenApi.Models;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.AWS;
+using VoteMe.Infrastructure.Consumers;
 using VoteMe.Infrastructure.Consumers.Auth;
 using VoteMe.Infrastructure.Consumers.Election;
 using VoteMe.Infrastructure.Consumers.Organization;
@@ -87,6 +89,31 @@ namespace VoteMe.Infrastructure.Extension
                     ValidAudience = configuration["JwtSettings:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(key)
                 };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var userManager = context.HttpContext.RequestServices
+                            .GetRequiredService<UserManager<AppUser>>();
+
+                        var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        var tokenVersion = context.Principal?.FindFirst("tokenVersion")?.Value;
+
+                        if (userId == null || tokenVersion == null)
+                        {
+                            context.Fail("Unauthorized");
+                            return;
+                        }
+
+                        var user = await userManager.FindByIdAsync(userId);
+                        if (user == null || user.TokenVersion.ToString() != tokenVersion)
+                        {
+                            context.Fail("Token is no longer valid");
+                            return;
+                        }
+                    }
+                };
             });
 
             //Swagger configuration
@@ -128,6 +155,7 @@ namespace VoteMe.Infrastructure.Extension
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();
+            services.AddHostedService<AuditLogConsumer>();
             services.AddHostedService<PasswordChangedConsumer>();
             services.AddHostedService<OrganizationCreatedConsumer>();
             services.AddHostedService<MemberJoinedConsumer>();

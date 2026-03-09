@@ -1,4 +1,6 @@
-﻿namespace VoteMe.Application.DTOs.Election
+﻿using VoteMe.Application.DTOs.Candidate;
+
+namespace VoteMe.Application.DTOs.Election
 {
     public class CreateElectionDto
     {

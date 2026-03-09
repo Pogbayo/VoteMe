@@ -12,7 +12,7 @@ using VoteMe.Infrastructure.Data;
 namespace VoteMe.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260307100156_InitialMigration")]
+    [Migration("20260309082412_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -188,10 +188,6 @@ namespace VoteMe.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");

@@ -38,7 +38,7 @@ namespace VoteMe.Infrastructure.Services
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim("tokenVersion", user.Tokenversion.ToString())
+                new Claim("tokenVersion", user.TokenVersion.ToString())
             };
 
             var roles = await _userManager.GetRolesAsync(user);
