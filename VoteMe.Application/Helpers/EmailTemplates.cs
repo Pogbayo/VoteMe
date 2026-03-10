@@ -48,17 +48,23 @@ namespace VoteMe.Application.Helpers
             );
         }
 
-        public static (string Subject, string Body) ElectionOpenedEmail(string electionName, string organizationName)
+        public static (string Subject, string Body) ElectionOpenedEmail(string electionName, string organizationName, List<string> categoryNames)
         {
+            var categoriesList = string.Join("", categoryNames.Select(c => $"<li>{c}</li>"));
+
             return (
                 Subject: $"Election '{electionName}' is now open!",
                 Body: $@"
-            <h2>Attention!</h2>
-            <p>The election <strong>{electionName}</strong> in <strong>{organizationName}</strong> is now open.</p>
-            <p>Log in to VoteMe to cast your vote before it closes.</p>
-            <br/>
-            <p>The VoteMe Team</p>
-        "
+                    <h2>Voting is now open!</h2>
+                    <p>The election <strong>{electionName}</strong> in <strong>{organizationName}</strong> is now open for voting.</p>
+                    <p><strong>Categories you can vote in:</strong></p>
+                    <ul>
+                        {categoriesList}
+                    </ul>
+                    <p>Log in to VoteMe to cast your vote before the election closes.</p>
+                    <br/>
+                    <p>The VoteMe Team</p>
+                "
             );
         }
 

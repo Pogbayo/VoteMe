@@ -23,9 +23,9 @@ public class NotificationService : INotificationService
         await _emailService.SendEmailAsync(emails, subject, body);
     }
 
-    public async Task SendElectionOpenedEmailAsync(List<string> emails, string electionTitle, string organizationName)
+    public async Task SendElectionOpenedEmailAsync(List<string> emails, string electionName, string organizationName, List<string> categoryNames)
     {
-        var (subject, body) = EmailTemplates.ElectionOpenedEmail(electionTitle, organizationName);
+        var (subject, body) = EmailTemplates.ElectionOpenedEmail(electionName, organizationName, categoryNames);
         await _emailService.SendEmailAsync(emails, subject, body);
     }
 

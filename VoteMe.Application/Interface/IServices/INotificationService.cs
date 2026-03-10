@@ -6,7 +6,7 @@ namespace VoteMe.Application.Interface.IServices
     {
         Task SendWelcomeEmailAsync(List<string> emails, string fullName);
         Task SendOtpEmailAsync(List<string> emails, string fullName, string otp);
-        Task SendElectionOpenedEmailAsync(List<string> emails, string electionName, string organizationName);
+        Task SendElectionOpenedEmailAsync(List<string> emails, string electionName, string organizationName, List<string> categoryNames);
         Task SendElectionClosedEmailAsync(List<string> emails, string electionName, string organizationName);
         Task SendVoteConfirmationEmailAsync(List<string> emails, string fullName, string electionName, string candidateName);
         Task SendVoteChangedEmailAsync(List<string> emails, string fullName, string electionName, string newCandidateName);

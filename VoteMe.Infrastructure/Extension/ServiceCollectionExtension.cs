@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using System.Text;
 using Amazon.SimpleEmail;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ using VoteMe.Infrastructure.Consumers.Election;
 using VoteMe.Infrastructure.Consumers.Organization;
 using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
+using VoteMe.Infrastructure.Jobs;
 using VoteMe.Infrastructure.Services;
 using VoteMe.Infrastructure.Settings;
 
@@ -155,6 +157,17 @@ namespace VoteMe.Infrastructure.Extension
                     }
                  });
             });
+
+            //Hangfire
+            services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(configuration.GetConnectionString("DefaultConnection")));
+
+            //Jobs
+            services.AddScoped<IElectionJobService, ElectionJobService>();
+            services.AddScoped<IElectionScheduler, ElectionScheduler>();
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();

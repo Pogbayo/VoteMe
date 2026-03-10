@@ -43,7 +43,8 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 await notificationService.SendElectionOpenedEmailAsync(
                     eventData.MemberEmails,
                     eventData.ElectionName,
-                    eventData.OrganizationName
+                    eventData.OrganizationName,
+                    eventData.ElectionCategoryNames
                 );
 
                 await unitOfWork.AuditLogs.LogAsync(

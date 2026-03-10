@@ -5,6 +5,7 @@ namespace VoteMe.Application.Interface.IRepositories
     public interface IOrganizationMemberRepository : IGenericRepository<OrganizationMember>
     {
         Task<OrganizationMember?> GetMemberAsync(Guid userId, Guid organizationId);
+        Task<IEnumerable<string>> GetOrganizationMemberEmailsAsync(Guid organizationId);
         Task<IEnumerable<OrganizationMember>> GetOrganizationMembersAsync(Guid organizationId);
         Task<IEnumerable<OrganizationMember>> GetUserOrganizationsAsync(Guid userId);
         Task<bool> IsMemberAsync(Guid userId, Guid organizationId);

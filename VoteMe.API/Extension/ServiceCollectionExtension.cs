@@ -1,5 +1,8 @@
-﻿using VoteMe.API.Hubs;
+﻿using Hangfire;
+using VoteMe.API.Hubs;
 using VoteMe.API.Middleware;
+using VoteMe.API.Services;
+using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.API.Extension
 {
@@ -9,6 +12,7 @@ namespace VoteMe.API.Extension
         {
             services.AddControllers();
             services.AddEndpointsApiExplorer();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddSwaggerGen();
             return services;
         }
@@ -18,6 +22,8 @@ namespace VoteMe.API.Extension
             app.UseMiddleware<ExceptionMiddleware>();
             app.UseAuthentication();
             app.MapHub<ElectionHub>("/hubs/election");
+            app.UseHangfireDashboard("/hangfire");
+            app.UseHttpsRedirection();
             app.UseAuthorization();
             app.UseSwagger();
             app.UseSwaggerUI();

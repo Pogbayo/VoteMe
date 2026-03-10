@@ -50,6 +50,15 @@ namespace VoteMe.Infrastructure.Repository
                     && om.OrganizationId == organizationId);
         }
 
+        public async Task<IEnumerable<string>> GetOrganizationMemberEmailsAsync(Guid organizationId)
+        {
+            return await _dbSet
+                .Include(m => m.User)
+                .Where(m => m.OrganizationId == organizationId)
+                .Select(m => m.User.Email!)
+                .ToListAsync();
+        }
+
         public async Task JoinOrganizationAsync(Guid userId, Guid organizationId)
         {
             var member = new OrganizationMember

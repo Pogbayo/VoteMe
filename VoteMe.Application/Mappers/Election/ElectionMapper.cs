@@ -7,7 +7,7 @@ using VoteMe.Domain.Entities;
 
 namespace VoteMe.Application.Mappers.Election
 {
-    public static class ElectionMapper
+    public static class     ElectionMapper
     {
         public static ElectionDto ToDto(Domain.Entities.Election election)
         {

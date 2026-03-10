@@ -11,31 +11,28 @@ namespace VoteMe.Infrastructure.Repository
         public ElectionCategoryRepository(AppDbContext context) : base(context)
         {
         }
+
+        public async Task<ElectionCategory?> GetElectionCategoryAsync(Guid categoryId)
+        {
+            return await _context.ElectionCategories
+                .FirstOrDefaultAsync(c => c.Id == categoryId);
+        }
+    
+
         public async Task<IEnumerable<ElectionCategory>> GetElectionCategoriesAsync(Guid electionId)
         {
-            return await _dbSet.Where(ec => ec.ElectionId == electionId)
-                .Select(ec => new ElectionCategory
-                {
-                    Id = ec.Id,
-                    Name = ec.Name,
-                    Description = ec.Description,
-                    ElectionId = ec.ElectionId
-                })
+            return await _context.ElectionCategories
+                .Where(c => c.ElectionId == electionId)
+                .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
-        public Task<ElectionCategory?> GetWithCandidatesAsync(Guid categoryId)
+        public async Task<ElectionCategory?> GetElectionCategoryResultsAsync(Guid categoryId)
         {
-            return _dbSet
-                .Include(ec => ec.Candidates)
-                .FirstOrDefaultAsync(ec => ec.Id == categoryId);
-        }
-
-        public Task<ElectionCategory?> GetWithVotesAsync(Guid categoryId)
-        {
-            return _dbSet
-                .Include(ec => ec.Votes)
-                .FirstOrDefaultAsync(ec => ec.Id == categoryId);
+            return await _context.ElectionCategories
+                .Include(c => c.Candidates)
+                    .ThenInclude(cand => cand.Votes)
+                .FirstOrDefaultAsync(c => c.Id == categoryId);
         }
     }
 }

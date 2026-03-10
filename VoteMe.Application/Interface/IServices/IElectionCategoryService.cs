@@ -1,15 +1,23 @@
 ﻿using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.ElectionCategory;
 
-namespace VoteMe.Application.Interface.IServices
+namespace VoteMe.Application.Interface.IServices;
+
+public interface IElectionCategoryService
 {
-    public interface IElectionCategoryService
-    {
-        Task<ApiResponse<ElectionCategoryDto>> GetCategoryAsync(Guid categoryId);
-        Task<ApiResponse<ElectionCategoryDto>> CreateCategoryAsync(Guid electionId, CreateElectionCategoryDto dto);
-        Task<ApiResponse<ElectionCategoryDto>> UpdateCategoryAsync(Guid categoryId, UpdateElectionCategoryDto dto);
-        Task<ApiResponse<bool>> DeleteCategoryAsync(Guid categoryId);
-        Task<ApiResponse<IEnumerable<ElectionCategoryDto>>> GetElectionCategoriesAsync(Guid electionId);
-        Task<ApiResponse<ElectionCategoryResultDto>> GetCategoryResultsAsync(Guid categoryId);
-    }
+    Task<ApiResponse<ElectionCategoryDto>> GetElectionCategoryAsync(Guid electionCategoryId);
+
+    Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync(
+        Guid electionId,
+        CreateElectionCategoryDto dto);
+
+    Task<ApiResponse<ElectionCategoryDto>> UpdateElectionCategoryAsync(
+        Guid electionCategoryId,
+        UpdateElectionCategoryDto dto);
+
+    Task<ApiResponse<bool>> DeleteElectionCategoryAsync(Guid electionCategoryId);
+
+    Task<ApiResponse<IEnumerable<ElectionCategoryDto>>> GetElectionCategoriesAsync(Guid electionId);
+
+    Task<ApiResponse<ElectionCategoryResultDto>> GetElectionCategoryResultsAsync(Guid electionCategoryId);
 }
