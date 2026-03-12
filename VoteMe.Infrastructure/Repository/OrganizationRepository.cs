@@ -24,9 +24,17 @@ namespace VoteMe.Infrastructure.Repository
                 .FirstOrDefaultAsync(o => o.UniqueKey == uniqueKey);
         }
 
-        public Task<Organization?> GetFullOrganization(Guid organizationId)
+       
+        public async Task<Organization?> GetFullOrganizationGraphAsync(Guid organizationId)
         {
-            throw new NotImplementedException();
+            return await _dbSet
+                .AsNoTracking()
+                .Include(o => o.Members.Where(m => !m.IsDeleted))
+                .Include(o => o.Elections.Where(e => !e.IsDeleted))
+                    .ThenInclude(e => e.Categories.Where(c => !c.IsDeleted))
+                        .ThenInclude(c => c.Candidates)
+                            .ThenInclude(cand => cand.Votes)
+                .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
         }
 
         public async Task<Organization?> GetWithElectionsAsync(Guid organizationId)

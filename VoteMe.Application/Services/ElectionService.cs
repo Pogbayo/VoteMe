@@ -204,11 +204,15 @@ namespace VoteMe.Application.Services
             if (election == null)
                 throw new NotFoundException("Election not found");
 
-            var totalVotes = election.Categories.Sum(c => c.Votes.Count);
+            var totalVotes = election.Categories
+                     .Sum(c => c.Candidates
+                          .Sum(cand => cand.Votes.Count));
 
             var categoryResults = election.Categories.Select(c =>
             {
-                var catTotalVotes = c.Votes.Count;
+                var catTotalVotes = c.Candidates.
+                       Sum(cand => cand.Votes.Count);
+
                 var candidateResults = c.Candidates
                     .Select(cand => CandidateMapper.ToResultDto(cand, cand.Votes.Count, catTotalVotes))
                     .OrderByDescending(r => r.VoteCount)
