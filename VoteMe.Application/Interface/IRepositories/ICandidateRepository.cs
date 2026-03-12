@@ -7,6 +7,7 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<IEnumerable<Candidate>> GetCategoryCanidatesAsync(Guid electionCategoryId);
         Task<IEnumerable<Candidate>> GetElectionCandidatesAsync(Guid electionId);
         Task<Candidate?> GetWithVotesAsync(Guid candidateId);
+        Task SoftDeleteByOrganizationIdAsync(Guid organizationId);
         Task<int> GetVoteCountAsync(Guid candidateId, Guid electionId);
     }
 }

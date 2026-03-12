@@ -27,5 +27,22 @@ namespace VoteMe.API.Services
 
         public bool IsAuthenticated =>
             _httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
+
+        public string DisplayName =>
+       _httpContextAccessor.HttpContext?.User
+           .FindFirstValue("displayName") ?? string.Empty;
+
+        public string FirstName =>
+            _httpContextAccessor.HttpContext?.User
+                .FindFirstValue(ClaimTypes.GivenName) ?? string.Empty;
+
+        public string LastName =>
+            _httpContextAccessor.HttpContext?.User
+                .FindFirstValue(ClaimTypes.Surname) ?? string.Empty;
+
+        public int TokenVersion =>
+            int.TryParse(
+                _httpContextAccessor.HttpContext?.User.FindFirstValue("tokenVersion"),
+                out var version) ? version : 0;
     }
 }

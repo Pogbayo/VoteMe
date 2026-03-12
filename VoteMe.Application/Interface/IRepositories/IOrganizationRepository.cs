@@ -8,6 +8,7 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<Organization?> GetByEmailAsync(string email);
         Task<Organization?> GetWithMembersAsync(Guid organizationId);
         Task<Organization?> GetWithElectionsAsync(Guid organizationId);
+        Task<Organization?> GetFullOrganization(Guid organizationId);
         Task<bool> UniqueKeyExistsAsync(string uniqueKey);
     }
 }

@@ -108,11 +108,7 @@ public class ElectionCategoryService : IElectionCategoryService
         if (election == null)
             throw new NotFoundException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "create ElectionCategories");
+        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(_unitOfWork,_currentUserService,election.OrganizationId,"create ElectionCategories");
 
         var electionCategory = new ElectionCategory
         {

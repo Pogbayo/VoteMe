@@ -9,6 +9,6 @@ namespace VoteMe.Application.Interface.IServices
         Task<ApiResponse<UserDto>> GetUserAsync(Guid userId);
         Task<ApiResponse<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto dto);
         Task<ApiResponse<bool>> DeleteUserAsync(Guid userId);
-        Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(int page = 1, int pageSize = 20);
+        Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(Guid organizationId , int page = 1, int pageSize = 20);
     }
 }

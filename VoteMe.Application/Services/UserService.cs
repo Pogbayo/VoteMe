@@ -11,7 +11,7 @@ namespace VoteMe.Application.Services
             throw new NotImplementedException();
         }
 
-        public Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(int page = 1, int pageSize = 20)
+        public Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(Guid organizationId, int page = 1, int pageSize = 20)
         {
             throw new NotImplementedException();
         }

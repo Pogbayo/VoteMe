@@ -98,4 +98,25 @@ public class NotificationService : INotificationService
         var (subject, body) = EmailTemplates.CandidateDeletedEmail(candidateName, electionCategoryName, electionName, organizationName);
         return await _emailService.SendEmailAsync(emails, subject, body);
     }
+
+    public async Task SendMemberLeftOrganizationEmailAsync(List<string> emails, string displayName, string organizationName)
+    {
+        var (subject, body) = EmailTemplates.MemberLeftOrganizationEmail(displayName, organizationName);
+        await _emailService.SendEmailAsync(emails, subject, body);
+    }
+
+    public async Task SendOrganizationDeletedNotificationAsync(
+    string organizationName,
+    List<string> memberEmails,
+    DateTime deletedAt)
+    {
+        var (subject, body) = EmailTemplates.OrganizationDeletedEmail(
+            organizationName,
+            deletedAt);
+
+        await _emailService.SendEmailAsync(
+            memberEmails,
+            subject,
+            body);
+    }
 }

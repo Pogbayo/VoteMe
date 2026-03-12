@@ -32,6 +32,21 @@ namespace VoteMe.Application.Helpers
             );
         }
 
+        public static (string Subject, string Body) MemberLeftOrganizationEmail(string displayName, string organizationName)
+        {
+            return (
+                Subject: $"You have left {organizationName}",
+                Body: $@"
+                    <h2>You have left {organizationName}</h2>
+                    <p>Hi <strong>{displayName}</strong>,</p>
+                    <p>You have successfully left the organization <strong>{organizationName}</strong>.</p>
+                    <p>If this was a mistake, you can rejoin using the organization's unique key.</p>
+                    <br/>
+                    <p>The VoteMe Team</p>
+                "
+            );
+        }
+
         public static (string Subject, string Body) OtpEmail(string fullName, string otp)
         {
             return (
@@ -246,6 +261,25 @@ namespace VoteMe.Application.Helpers
             <p>The VoteMe Team</p>
         "
             );
+        }
+
+        public static (string Subject, string Body) OrganizationDeletedEmail(
+            string organizationName,
+            DateTime deletedAt)
+        {
+            string subject = $"Important: {organizationName} has been deleted";
+
+            string body = $@"
+                <h2>Organization Deleted</h2>
+                <p>Dear member,</p>
+                <p>The organization <strong>{organizationName}</strong> was deleted on {deletedAt:MMMM dd, yyyy 'at' HH:mm UTC}.</p>
+                <p>All associated elections, categories, candidates, and content have been archived. 
+                   You no longer have access to this organization's features.</p>
+                <p>If this deletion was unexpected or you believe it was made in error, 
+                   please contact support immediately.</p>
+                <p>Best regards,<br>The VoteMe Team</p>";
+
+            return (subject, body);
         }
     }
 }

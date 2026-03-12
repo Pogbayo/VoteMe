@@ -18,7 +18,7 @@ namespace VoteMe.Application.Interface.IRepositories
         void Update(T entity);
         void Delete(T entity);
         void SoftDelete(T entity);
-        Task SoftDeleteByIdAsync(Guid id);       
+        Task SoftDeleteByIdAsync(Guid id);
         Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
     }

@@ -40,6 +40,11 @@ namespace VoteMe.Infrastructure.Extension
 
             //AWS Settings
             services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+
+            //CloudinarySettings
+            services.Configure<CloudinarySettings>(configuration.GetSection("CloudinarySettings"));
+
+            //AWS SES Client
             services.AddScoped<IAmazonSimpleEmailService>(sp =>
             {
                 var settings = sp.GetRequiredService<IOptions<AwsSettings>>().Value;
@@ -51,6 +56,7 @@ namespace VoteMe.Infrastructure.Extension
                 );
             });
 
+            //DbContext
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(connectionString, sqlOptions =>
                 sqlOptions.CommandTimeout(60)));
@@ -168,6 +174,8 @@ namespace VoteMe.Infrastructure.Extension
             //Jobs
             services.AddScoped<IElectionJobService, ElectionJobService>();
             services.AddScoped<IElectionScheduler, ElectionScheduler>();
+            services.AddScoped<IImageService, ImageService>();
+
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();

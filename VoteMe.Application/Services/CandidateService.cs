@@ -11,9 +11,10 @@ namespace VoteMe.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<CandidateService> _logger;
         private readonly IMessageBus _messageBus;
-
-        public CandidateService(IUnitOfWork unitOfWork, ILogger<CandidateService> logger, IMessageBus messageBus)
+        private ICacheService _cacheService;
+        public CandidateService(IUnitOfWork unitOfWork,ICacheService cacheService, ILogger<CandidateService> logger, IMessageBus messageBus)
         {
+            _cacheService = cacheService;
             _unitOfWork = unitOfWork;
             _logger = logger;
             _messageBus = messageBus;

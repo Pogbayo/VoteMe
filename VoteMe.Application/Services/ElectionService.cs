@@ -54,7 +54,6 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<ElectionDto>.SuccessResponse(result, "Election retrieved successfully");
         }
-
         public async Task<ApiResponse<ElectionDto>> CreateElectionAsync(Guid organizationId, CreateElectionDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
@@ -112,7 +111,6 @@ namespace VoteMe.Application.Services
                 ElectionMapper.ToDto(election),
                 "Election created successfully");
         }
-
         public async Task<ApiResponse<ElectionDto>> UpdateElectionAsync(Guid electionId, UpdateElectionDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
@@ -155,7 +153,26 @@ namespace VoteMe.Application.Services
                 ElectionMapper.ToDto(election),
                 "Election updated successfully");
         }
+        public async Task<ApiResponse<(IEnumerable<ElectionDto>, int)>> GetOrganizationElectionsAsync(Guid organizationId, int page = 1, int pageSize = 20)
+        {
+            if (organizationId == Guid.Empty)
+                throw new BadRequestException("Organization with provided Id does not exist");
 
+            var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
+            if (organization == null)
+                throw new NotFoundException("Organization not found");
+
+            var cacheKey = $"organization-elections-{organizationId}";
+            var cached = await _cacheService.GetAsync<(IEnumerable<ElectionDto>, int)>(cacheKey);
+            if (cached.Item1 != null || cached.Item2 >= 0)
+                return ApiResponse<(IEnumerable<ElectionDto>, int)>.SuccessResponse(cached, "Elections retrieved successfully");
+
+            var (items, totalCount) = await _unitOfWork.Elections.GetOrganizationElectionsAsync(organizationId, page, pageSize);
+            var result = ElectionMapper.ToDtoList(items);
+
+            await _cacheService.SetAsync(cacheKey, (result, totalCount), TimeSpan.FromMinutes(10));
+            return ApiResponse<(IEnumerable<ElectionDto>, int)>.SuccessResponse((result, totalCount), "Elections retrieved successfully");
+        }
         public async Task<ApiResponse<bool>> DeleteElectionAsync(Guid electionId)
         {
             var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
@@ -176,33 +193,6 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<bool>.SuccessResponse(true, "Election deleted successfully");
         }
-
-        public async Task<ApiResponse<IEnumerable<ElectionDto>>> GetOrganizationElectionsAsync(Guid organizationId, int page, int pageSize)
-        {
-            if (organizationId == Guid.Empty)
-                throw new BadRequestException("Organization with provided Id does not exist");
-
-            var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
-            if (organization == null)
-                throw new NotFoundException("Organization not found");
-
-            var cacheKey = $"organization-elections-{organizationId}";
-            var cached = await _cacheService.GetAsync<IEnumerable<ElectionDto>>(cacheKey);
-            if (cached != null)
-                return ApiResponse<IEnumerable<ElectionDto>>.SuccessResponse(cached, "Elections retrieved successfully");
-
-            var (items,totalCount) = await _unitOfWork.Elections.GetOrganizationElectionsAsync(
-                organizationId,
-                page,
-                pageSize);
-
-            var result = ElectionMapper.ToDtoList(items);
-
-            await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(10));
-
-            return ApiResponse<IEnumerable<ElectionDto>>.SuccessResponse(result, "Elections retrieved successfully");
-        }
-
         public async Task<ApiResponse<ElectionResultDto>> GetElectionResultsAsync(Guid electionId)
         {
             var cacheKey = $"election-results-{electionId}";

@@ -36,6 +36,11 @@ namespace VoteMe.API.Middleware
                 _logger.LogWarning(ex.Message);
                 await HandleExceptionAsync(context, ex.Message, HttpStatusCode.BadRequest);
             }
+            catch (Domain.Exceptions.InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                await HandleExceptionAsync(context, ex.Message, HttpStatusCode.BadRequest);
+            }
             catch (ForbiddenException ex)
             {
                 _logger.LogWarning(ex.Message);

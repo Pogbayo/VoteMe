@@ -60,11 +60,12 @@ namespace VoteMe.Infrastructure.Consumers.Voting
 
                 var fullName = eventData.CandidateFirstName + "" + eventData.CandidateLastName;
 
-                await hubContext.Clients.All.SendAsync("VoteUpdated", new
+                await hubContext.Clients.All.SendAsync("VoteCasted", new
                 {
                     ElectionId = eventData.ElectionId,
                     ElectionCategoryId = eventData.ElectionCategoryId,
                     CandidateId = eventData.CandidateId,
+                    ElectionCategoryName = eventData.ElectionCategoryName,
                     CandidateName = $"{eventData.CandidateFirstName} {eventData.CandidateLastName}",
                     VoterId = eventData.IsPrivate ? null : (Guid?)eventData.UserId,
                     VoterName = eventData.IsPrivate ? "Anonymous" : eventData.VoterDisplayName,

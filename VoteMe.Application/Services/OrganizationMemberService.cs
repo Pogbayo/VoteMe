@@ -2,8 +2,12 @@
 using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.DTOs.OrganizationMember;
+using VoteMe.Application.Events.Organization;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Application.Mappers.Organization;
+using VoteMe.Domain.Entities;
+using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
 {
@@ -11,44 +15,219 @@ namespace VoteMe.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<OrganizationMemberService> _logger;
-        public OrganizationMemberService(IUnitOfWork unitOfWork, ILogger<OrganizationMemberService> logger)
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IMessageBus _messageBus;
+        private readonly ICacheService _cacheService;
+
+        public OrganizationMemberService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<OrganizationMemberService> logger)
         {
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
+            _messageBus = messageBus;
+            _cacheService = cacheService;
         }
-        public Task<ApiResponse<bool>> DemoteFromAdminAsync(Guid organizationId, Guid userId)
+        public async Task<ApiResponse<bool>> DemoteFromAdminAsync(Guid organizationId, Guid userId)
         {
-            throw new NotImplementedException();
+            var organization = await _unitOfWork.Organizations
+                .FindOneAsync(o => o.Id == organizationId);
+
+            if (organization == null)
+                throw new NotFoundException("Organization not found");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .FindOneAsync(m => m.OrganizationId == organizationId && m.UserId == userId);
+
+            if (member == null)
+                throw new NotFoundException("Member not found in the organization");
+
+            if (!member.IsAdmin)
+                throw new BadRequestException("User is not an admin");
+
+            var adminCount = await _unitOfWork.OrganizationMembers
+                .CountAsync(m => m.OrganizationId == organizationId && m.IsAdmin);
+
+            if (adminCount <= 1)
+                throw new BadRequestException("Organization must have at least one admin");
+
+            member.IsAdmin = false;
+            member.UpdateTimestamps();
+
+            _unitOfWork.OrganizationMembers.Update(member);
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<bool>.SuccessResponse(true, "User demoted from admin successfully");
         }
 
-        public Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetMembersAsync(Guid organizationId, int page = 1, int pageSize = 20)
+        public async Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetMembersAsync(Guid organizationId, int page = 1, int pageSize = 20)
         {
-            throw new NotImplementedException();
+            var cacheKey = $"OrganizationMembers_{organizationId}_Page{page}_Size{pageSize}";
+            var cachedData = await _cacheService.GetAsync<IEnumerable<OrganizationMemberDto>>(cacheKey);
+            if (cachedData != null)
+            {
+                _logger.LogInformation("Returning cached members for organization {OrganizationId}", organizationId);
+                return ApiResponse<IEnumerable<OrganizationMemberDto>>.SuccessResponse(cachedData, "Members retrieved from cache");
+            }
+
+            var members = await _unitOfWork.OrganizationMembers.GetOrganizationMembersAsync(organizationId, page, pageSize);
+            var memberDtos = OrganizationMapper.ToMemberDtoList(members);
+
+            await _cacheService.SetAsync(cacheKey, memberDtos, TimeSpan.FromMinutes(5));
+
+            return ApiResponse<IEnumerable<OrganizationMemberDto>>.SuccessResponse(memberDtos, "Members retrieved successfully");
         }
 
-        public Task<ApiResponse<IEnumerable<OrganizationDto>>> GetUserOrganizationsAsync(Guid userId)
+        public async Task<ApiResponse<IEnumerable<OrganizationDto>>> GetUserOrganizationsAsync()
         {
-            throw new NotImplementedException();
+            var userId = _currentUserService.UserId;
+
+            var memberships = await _unitOfWork.OrganizationMembers
+                .GetUserMembershipsAsync(userId);
+
+            var organizations = memberships.Select(m => m.Organization);
+
+            return ApiResponse<IEnumerable<OrganizationDto>>.SuccessResponse(
+                OrganizationMapper.ToDtoList(organizations),
+                "Organizations retrieved successfully");
         }
 
-        public Task<ApiResponse<bool>> JoinOrganizationAsync(Guid userId, string uniqueKey)
+        public async Task<ApiResponse<bool>> JoinOrganizationAsync(string uniqueKey)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(uniqueKey))
+                throw new BadRequestException("Unique key is required");
+
+            var userId = _currentUserService.UserId;
+
+            var organization = await _unitOfWork.Organizations.GetByUniqueKeyAsync(uniqueKey.Trim().ToUpper());
+            if (organization == null)
+                throw new NotFoundException("Organization not found");
+
+            var alreadyMember = await _unitOfWork.OrganizationMembers
+                .IsMemberAsync(userId, organization.Id);
+            if (alreadyMember)
+                throw new BadRequestException("You are already a member of this organization");
+
+            var member = new OrganizationMember
+            {
+                UserId = userId,
+                OrganizationId = organization.Id,
+                IsAdmin = false,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.OrganizationMembers.AddAsync(member);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} joined organization '{OrgName}'",
+                userId, organization.Name);
+
+            await _messageBus.PublishAsync("member-joined", new MemberJoinedOrganizationEvent
+            {
+                UserId = userId,
+                Email = _currentUserService.Email,
+                DisplayName = _currentUserService.DisplayName,
+                OrganizationName = organization.Name
+            });
+
+            return ApiResponse<bool>.SuccessResponse(true, "Successfully joined organization");
         }
 
-        public Task<ApiResponse<bool>> LeaveOrganizationAsync(Guid organizationId, Guid userId)
+        public async Task<ApiResponse<bool>> LeaveOrganizationAsync(Guid organizationId)
         {
-            throw new NotImplementedException();
+            var userId = _currentUserService.UserId;
+
+            var organization = await _unitOfWork.Organizations
+                .FindOneAsync(o => o.Id == organizationId);
+
+            if (organization == null)
+                throw new NotFoundException("Organization not found");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, organizationId);
+            if (member == null)
+                throw new NotFoundException("You are not a member of this organization");
+
+            if (member.IsAdmin)
+                throw new BadRequestException("Admins cannot leave the organization — transfer admin rights first");
+
+            await _unitOfWork.OrganizationMembers.SoftDeleteByIdAsync(member.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} left organization {OrganizationId}",
+                userId, organizationId);
+
+            await _messageBus.PublishAsync("member-left", new MemberLeftOrganizationEvent
+            {
+                UserId = userId,
+                Email = _currentUserService.Email,
+                DisplayName = _currentUserService.DisplayName,
+                OrganizationName = organization?.Name ?? string.Empty
+            });
+
+            return ApiResponse<bool>.SuccessResponse(true, "Successfully left organization");
         }
 
-        public Task<ApiResponse<bool>> PromoteToAdminAsync(Guid organizationId, Guid userId)
+        public async Task<ApiResponse<bool>> PromoteToAdminAsync(Guid organizationId, Guid userId)
         {
-            throw new NotImplementedException();
+            var requesterId = _currentUserService.UserId;
+
+            var requester = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(requesterId, organizationId);
+            if (requester == null || !requester.IsAdmin)
+                throw new ForbiddenException("Only admins can promote members");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, organizationId);
+            if (member == null)
+                throw new NotFoundException("Member not found in this organization");
+
+            if (member.IsAdmin)
+                throw new BadRequestException("Member is already an admin");
+
+            member.IsAdmin = true;
+            member.UpdateTimestamps();
+
+            _unitOfWork.OrganizationMembers.Update(member);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} promoted to admin in organization {OrganizationId}",
+                userId, organizationId);
+
+            return ApiResponse<bool>.SuccessResponse(true, "Member promoted to admin successfully");
         }
 
-        public Task<ApiResponse<bool>> RemoveMemberAsync(Guid organizationId, Guid userId)
+        public async Task<ApiResponse<bool>> RemoveMemberAsync(Guid organizationId, Guid userId)
         {
-            throw new NotImplementedException();
+            var requesterId = _currentUserService.UserId;
+
+            var requester = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(requesterId, organizationId);
+            if (requester == null || !requester.IsAdmin)
+                throw new ForbiddenException("Only admins can remove members");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, organizationId);
+            if (member == null)
+                throw new NotFoundException("Member not found in this organization");
+
+            if (member.IsAdmin)
+                throw new BadRequestException("Cannot remove an admin — demote them first");
+
+            await _unitOfWork.OrganizationMembers.SoftDeleteByIdAsync(member.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} removed from organization {OrganizationId} by {RequesterId}",
+                userId, organizationId, requesterId);
+
+            await _messageBus.PublishAsync("member-removed", new MemberRemovedFromOrganizationEvent
+            {
+                RemovedByUserId = requesterId,
+                RemovedUserId = userId,
+                DisplayName = member.User.DisplayName ?? $"{member.User.FirstName} {member.User.LastName}",
+                OrganizationName = string.Empty
+            });
+
+            return ApiResponse<bool>.SuccessResponse(true, "Member removed successfully");
         }
     }
 }

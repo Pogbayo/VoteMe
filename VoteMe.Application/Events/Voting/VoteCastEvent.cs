@@ -6,7 +6,7 @@ namespace VoteMe.Application.Events.Voting
         public Guid ElectionId { get; set; }
         public string ElectionName { get; set; } = string.Empty;
         public Guid ElectionCategoryId { get; set; }
-        public string CategoryName { get; set; } = string.Empty;
+        public string ElectionCategoryName { get; set; } = string.Empty;
         public Guid CandidateId { get; set; }
         public string CandidateFirstName { get; set; } = string.Empty;
         public string CandidateLastName { get; set; } = string.Empty;

@@ -24,6 +24,11 @@ namespace VoteMe.Infrastructure.Repository
                 .FirstOrDefaultAsync(o => o.UniqueKey == uniqueKey);
         }
 
+        public Task<Organization?> GetFullOrganization(Guid organizationId)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<Organization?> GetWithElectionsAsync(Guid organizationId)
         {
             return await _dbSet

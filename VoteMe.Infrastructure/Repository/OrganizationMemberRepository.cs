@@ -19,11 +19,13 @@ namespace VoteMe.Infrastructure.Repository
                 .FirstOrDefaultAsync(om => om.UserId == userId && om.OrganizationId == organizationId);
         }
 
-        public async Task<IEnumerable<OrganizationMember>> GetOrganizationMembersAsync(Guid organizationId)
+        public async Task<IEnumerable<OrganizationMember>> GetOrganizationMembersAsync(Guid organizationId,int page = 1,int pageSize = 20)
         {
             return await _dbSet
                 .Include(om => om.User)
                 .Where(om => om.OrganizationId == organizationId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
@@ -56,6 +58,14 @@ namespace VoteMe.Infrastructure.Repository
                 .Include(m => m.User)
                 .Where(m => m.OrganizationId == organizationId)
                 .Select(m => m.User.Email!)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<OrganizationMember>> GetUserMembershipsAsync(Guid userId)
+        {
+            return await _dbSet
+                .Include(m => m.Organization)
+                .Where(m => m.UserId == userId)
                 .ToListAsync();
         }
 

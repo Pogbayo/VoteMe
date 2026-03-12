@@ -78,7 +78,7 @@ namespace VoteMe.Infrastructure.Repositories
 
         public async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
             Expression<Func<T, bool>>? predicate = null,
-            int page = 1, 
+            int page = 1,
             int pageSize = 20)
         {
             var query = _dbSet.AsQueryable();
