@@ -6,7 +6,6 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.ElectionCategory;
 using VoteMe.Application.Interface.IRepositories;
-using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.Infrastructure.Consumers.ElectionCategory
 {
@@ -36,7 +35,6 @@ namespace VoteMe.Infrastructure.Consumers.ElectionCategory
 
                 using var scope = _scopeFactory.CreateScope();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.UpdatedByUserId,

@@ -49,7 +49,8 @@ namespace VoteMe.Infrastructure.Data
                 .HasOne(ec => ec.Election)
                 .WithMany(e => e.Categories)
                 .HasForeignKey(ec => ec.ElectionId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.Entity<ElectionCategory>()
                 .HasIndex(ec => ec.ElectionId);
 
@@ -60,8 +61,6 @@ namespace VoteMe.Infrastructure.Data
                 .HasForeignKey(c => c.ElectionCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Candidate>()
-                .HasIndex(c => c.ElectionCategoryId);
 
             // Vote - prevent double voting per category
             builder.Entity<Vote>()

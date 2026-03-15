@@ -32,9 +32,13 @@ namespace VoteMe.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DisplayName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    Tokenversion = table.Column<int>(type: "int", nullable: false),
+                    TokenVersion = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -207,13 +211,13 @@ namespace VoteMe.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     IsPrivate = table.Column<bool>(type: "bit", nullable: false),
+                    OrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
@@ -262,14 +266,40 @@ namespace VoteMe.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ElectionCategories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ElectionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ElectionCategories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ElectionCategories_Elections_ElectionId",
+                        column: x => x.ElectionId,
+                        principalTable: "Elections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Candidates",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Bio = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DisplayName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Bio = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PhotoUrl = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ElectionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ElectionCategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
@@ -279,11 +309,11 @@ namespace VoteMe.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Candidates", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Candidates_Elections_ElectionId",
-                        column: x => x.ElectionId,
-                        principalTable: "Elections",
+                        name: "FK_Candidates_ElectionCategories_ElectionCategoryId",
+                        column: x => x.ElectionCategoryId,
+                        principalTable: "ElectionCategories",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -292,6 +322,7 @@ namespace VoteMe.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CandidateId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ElectionCategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     ElectionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     VoterId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -315,11 +346,17 @@ namespace VoteMe.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
+                        name: "FK_Votes_ElectionCategories_ElectionCategoryId",
+                        column: x => x.ElectionCategoryId,
+                        principalTable: "ElectionCategories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
                         name: "FK_Votes_Elections_ElectionId",
                         column: x => x.ElectionId,
                         principalTable: "Elections",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -362,8 +399,13 @@ namespace VoteMe.Infrastructure.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Candidates_ElectionId",
+                name: "IX_Candidates_ElectionCategoryId",
                 table: "Candidates",
+                column: "ElectionCategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ElectionCategories_ElectionId",
+                table: "ElectionCategories",
                 column: "ElectionId");
 
             migrationBuilder.CreateIndex(
@@ -404,14 +446,19 @@ namespace VoteMe.Infrastructure.Migrations
                 column: "CandidateId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Votes_ElectionCategoryId",
+                table: "Votes",
+                column: "ElectionCategoryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Votes_ElectionId",
                 table: "Votes",
                 column: "ElectionId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Votes_VoterId_ElectionId",
+                name: "IX_Votes_VoterId_ElectionCategoryId",
                 table: "Votes",
-                columns: new[] { "VoterId", "ElectionId" },
+                columns: new[] { "VoterId", "ElectionCategoryId" },
                 unique: true);
         }
 
@@ -450,6 +497,9 @@ namespace VoteMe.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Candidates");
+
+            migrationBuilder.DropTable(
+                name: "ElectionCategories");
 
             migrationBuilder.DropTable(
                 name: "Elections");

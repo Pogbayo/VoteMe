@@ -12,8 +12,8 @@ using VoteMe.Infrastructure.Data;
 namespace VoteMe.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260309232805_FixCandidateDeleteBehavior")]
-    partial class FixCandidateDeleteBehavior
+    [Migration("20260315124819_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -175,6 +175,9 @@ namespace VoteMe.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -228,6 +231,9 @@ namespace VoteMe.Infrastructure.Migrations
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
@@ -308,9 +314,6 @@ namespace VoteMe.Infrastructure.Migrations
                     b.Property<Guid>("ElectionCategoryId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ElectionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -332,8 +335,6 @@ namespace VoteMe.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ElectionCategoryId");
-
-                    b.HasIndex("ElectionId");
 
                     b.ToTable("Candidates");
                 });
@@ -618,14 +619,6 @@ namespace VoteMe.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("VoteMe.Domain.Entities.Election", "Election")
-                        .WithMany()
-                        .HasForeignKey("ElectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Election");
-
                     b.Navigation("ElectionCategory");
                 });
 
@@ -645,7 +638,7 @@ namespace VoteMe.Infrastructure.Migrations
                     b.HasOne("VoteMe.Domain.Entities.Election", "Election")
                         .WithMany("Categories")
                         .HasForeignKey("ElectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Election");
@@ -679,9 +672,9 @@ namespace VoteMe.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("VoteMe.Domain.Entities.ElectionCategory", "ElectionCategory")
-                        .WithMany("Votes")
+                        .WithMany()
                         .HasForeignKey("ElectionCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("VoteMe.Domain.Entities.Election", "Election")
@@ -725,8 +718,6 @@ namespace VoteMe.Infrastructure.Migrations
             modelBuilder.Entity("VoteMe.Domain.Entities.ElectionCategory", b =>
                 {
                     b.Navigation("Candidates");
-
-                    b.Navigation("Votes");
                 });
 
             modelBuilder.Entity("VoteMe.Domain.Entities.Organization", b =>
