@@ -91,11 +91,13 @@ namespace VoteMe.Infrastructure.Jobs
             var memberEmails = await _unitOfWork.OrganizationMembers
                 .GetOrganizationMemberEmailsAsync(election.OrganizationId);
 
-            var totalVotes = election.Categories.Sum(c => c.Votes.Count);
+            var totalVotes = election.Categories
+                     .Sum(c => c.Candidates
+                        .Sum(c => c.Votes.Count));
 
             var categoryResults = election.Categories.Select(c =>
             {
-                var catTotalVotes = c.Votes.Count;
+                var catTotalVotes = c.Candidates.Sum(c => c.Votes.Count);
                 var winner = c.Candidates
                     .OrderByDescending(cand => cand.Votes.Count)
                     .FirstOrDefault();

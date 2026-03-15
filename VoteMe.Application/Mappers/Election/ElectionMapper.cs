@@ -1,9 +1,6 @@
-﻿using VoteMe.Application.DTOs.Candidate;
-using VoteMe.Application.DTOs.Election;
+﻿using VoteMe.Application.DTOs.Election;
 using VoteMe.Application.DTOs.ElectionCategory;
-using VoteMe.Application.Mappers.Candidate;
 using VoteMe.Application.Mappers.ElectionCategory;
-using VoteMe.Domain.Entities;
 
 namespace VoteMe.Application.Mappers.Election
 {
@@ -33,6 +30,7 @@ namespace VoteMe.Application.Mappers.Election
                 ElectionId = election.Id,
                 ElectionName = election.Name,
                 TotalVotes = categoryResults.Sum(c => c.TotalVotes),
+                WinnersNames = categoryResults.Select(c => c.Winner!.DisplayName).ToList()!,
                 CategoryResults = categoryResults
             };
         }

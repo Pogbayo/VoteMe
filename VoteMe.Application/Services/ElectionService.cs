@@ -205,8 +205,7 @@ namespace VoteMe.Application.Services
                 throw new NotFoundException("Election not found");
 
             var totalVotes = election.Categories
-                     .Sum(c => c.Candidates
-                          .Sum(cand => cand.Votes.Count));
+                     .Sum(c => c.Candidates.Sum(cand => cand.Votes.Count));
 
             var categoryResults = election.Categories.Select(c =>
             {

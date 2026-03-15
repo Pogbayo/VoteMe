@@ -7,7 +7,7 @@ namespace VoteMe.Application.DTOs.Election
         public Guid ElectionId { get; set; }
         public string ElectionName { get; set; } = string.Empty;
         public int TotalVotes { get; set; }
-        public string WinnersNames { get; set; } = string.Empty;
+        public required List<string> WinnersNames { get; set; } = new();
         public List<ElectionCategoryResultDto> CategoryResults { get; set; } = new();
     }
 }

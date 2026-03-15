@@ -84,7 +84,7 @@ public class ElectionCategoryService : IElectionCategoryService
                 cached, "ElectionCategory results retrieved successfully (from cache)");
         }
 
-        var totalVotes = electionCategory.Votes?.Count ?? 0;
+        var totalVotes = electionCategory.Candidates.Count;
 
         var candidateResults = electionCategory.Candidates
             ?.Select(c => CandidateMapper.ToResultDto(c, c.Votes?.Count ?? 0, totalVotes))

@@ -9,7 +9,7 @@
         public Guid NewCandidateId { get; set; }
         public string NewCandidateFirstName { get; set; } = string.Empty;
         public string NewCandidateLastName { get; set; } = string.Empty;
-        public Guid? UserId { get; set; }
+        public Guid? VoterId { get; set; }
         public string VoterEmail { get; set; } = string.Empty;
         public string VoterDisplayName { get; set; } = string.Empty;
         public bool IsPrivate { get; set; }

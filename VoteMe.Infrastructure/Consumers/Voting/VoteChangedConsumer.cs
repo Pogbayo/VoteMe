@@ -51,7 +51,7 @@ namespace VoteMe.Infrastructure.Consumers.Voting
                  );
 
                 await unitOfWork.AuditLogs.LogAsync(
-                   eventData.UserId ?? Guid.Empty,
+                   eventData.VoterId ?? Guid.Empty,
                    "VoteChanged",
                    "Vote",
                    $"User changed vote to '{eventData.NewCandidateFirstName} {eventData.NewCandidateLastName}' in election '{eventData.ElectionName}'"
@@ -65,7 +65,7 @@ namespace VoteMe.Infrastructure.Consumers.Voting
                     OldCandidateId = eventData.OldCandidateId,
                     NewCandidateId = eventData.NewCandidateId,
                     NewCandidateName = $"{eventData.NewCandidateFirstName} {eventData.NewCandidateLastName}",
-                    VoterId = eventData.IsPrivate ? null : (Guid?)eventData.UserId,
+                    VoterId = eventData.IsPrivate ? null : (Guid?)eventData.VoterId,
                     VoterName = eventData.IsPrivate ? "Anonymous" : eventData.VoterDisplayName,
                     UpdatedAt = DateTime.UtcNow
                 });

@@ -13,5 +13,19 @@ namespace VoteMe.Domain.Entities
         public int TokenVersion { get; set; } = 1;
         public ICollection<OrganizationMember> OrganizationMembers { get; set; } = new List<OrganizationMember>();
         public ICollection<Vote> Votes { get; set; } = new List<Vote>();
+
+        public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
+
+        public void MarkAsDeleted()
+        {
+            IsDeleted = true;
+            DeletedAt = DateTime.UtcNow;
+        }
+
+        public void UpdateTimestamps()
+        {
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

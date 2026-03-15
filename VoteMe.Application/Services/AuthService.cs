@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Auth;
 using VoteMe.Application.DTOs.Organization;
@@ -7,6 +9,7 @@ using VoteMe.Application.Events.Organization;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Auth;
+using VoteMe.Application.Mappers.Organization;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
 using VoteMe.Domain.Exceptions;
@@ -20,20 +23,186 @@ namespace VoteMe.Application.Services
         private readonly IMessageBus _messageBus;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITokenService _tokenService;
+        private readonly IImageService _imageService;
+        private readonly ILogger<AuthService> _logger;
+
 
         public AuthService(
+            IImageService imageService,
+            ILogger<AuthService> logger,
             UserManager<AppUser> userManager,
             RoleManager<AppRole> roleManager,
             IMessageBus messageBus,
             IUnitOfWork unitOfWork,
             ITokenService tokenService)
         {
+            _imageService = imageService;
+            _logger = logger;
             _userManager = userManager;
             _roleManager = roleManager;
             _messageBus = messageBus;
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
         }
+
+
+        private string GenerateUniqueKey(int length = 8)
+        {
+            const string chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+            var bytes = Guid.NewGuid().ToByteArray();
+            var result = new char[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = chars[(bytes[i % bytes.Length] ^ (i * 37)) % chars.Length];
+            }
+
+            return new string(result);
+        }
+
+
+        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(
+             CreateOrganizationDto dto,
+             IFormFile? logoFile)
+        {
+            if (string.IsNullOrWhiteSpace(dto.OrganizationName))
+                throw new BadRequestException("Organization name is required");
+
+            if (string.IsNullOrWhiteSpace(dto.AdminEmail))
+                throw new BadRequestException("Admin email is required");
+
+            var trimmedEmail = dto.AdminEmail.Trim();
+
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                var existingUser = await _userManager.FindByEmailAsync(trimmedEmail);
+                AppUser adminUser;
+
+                if (existingUser == null)
+                {
+                    adminUser = new AppUser
+                    {
+                        UserName = trimmedEmail,
+                        Email = trimmedEmail,
+                        FirstName = dto.AdminFirstName?.Trim() ?? string.Empty,
+                        LastName = dto.AdminLastName?.Trim() ?? string.Empty,
+                        DisplayName = dto.AdminDisplayName?.Trim() ?? string.Empty,
+                        EmailConfirmed = false,
+                        TokenVersion = 1,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var createResult = await _userManager.CreateAsync(adminUser, dto.Password);
+                    if (!createResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                        throw new BadRequestException($"Failed to create admin account: {errors}");
+                    }
+
+                    await _userManager.AddToRoleAsync(adminUser, Roles.OrgAdmin);
+                }
+                else
+                {
+                    adminUser = existingUser;
+
+                    if (!await _userManager.IsInRoleAsync(adminUser, Roles.OrgAdmin))
+                    {
+                        await _userManager.AddToRoleAsync(adminUser, Roles.OrgAdmin);
+                    }
+                }
+
+                const int maxAttempts = 10;
+                string uniqueKey;
+                int attempts = 0;
+
+                do
+                {
+                    if (attempts++ >= maxAttempts)
+                    {
+                        throw new Domain.Exceptions.InvalidOperationException(
+                            "Unable to generate a unique organization key after multiple attempts. Please try again later.");
+                    }
+
+                    uniqueKey = GenerateUniqueKey();
+                }
+                while (await _unitOfWork.Organizations.ExistsAsync(o => o.UniqueKey == uniqueKey));
+
+                var organization = new Organization
+                {
+                    Name = dto.OrganizationName.Trim(),
+                    Description = dto.Description?.Trim() ?? string.Empty,
+                    Email = trimmedEmail,
+                    UniqueKey = uniqueKey,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.Organizations.AddAsync(organization);
+                await _unitOfWork.SaveChangesAsync();
+
+                string? logoUrl = null;
+                if (logoFile != null && logoFile.Length > 0)
+                {
+                    logoUrl = await _imageService.UploadImageAsync(
+                        logoFile,
+                        "Organization",
+                        organization.Id); // folder: /Organization/{organization.Id}/logo
+
+                    if (string.IsNullOrEmpty(logoUrl))
+                    {
+                        throw new Domain.Exceptions.InvalidOperationException("Failed to upload organization logo.");
+                    }
+
+                    organization.LogoUrl = logoUrl;
+                    _unitOfWork.Organizations.Update(organization);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+
+                var membership = new OrganizationMember
+                {
+                    UserId = adminUser.Id,
+                    OrganizationId = organization.Id,
+                    IsAdmin = true,
+                    JoinedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.OrganizationMembers.AddAsync(membership);
+                await _unitOfWork.SaveChangesAsync();
+
+                await _messageBus.PublishAsync("organization-created", new OrganizationCreatedEvent
+                {
+                    AdminUserId = adminUser.Id,
+                    AdminEmail = adminUser.Email ?? string.Empty,
+                    AdminDisplayName = adminUser.DisplayName ?? string.Empty,
+                    OrganizationName = organization.Name,
+                    UniqueKey = organization.UniqueKey
+                });
+
+                await _unitOfWork.CommitTransactionAsync();
+
+                var responseDto = OrganizationMapper.ToCreatedOrganizationDto(organization);
+
+                return ApiResponse<CreatedOrganizationDto>.SuccessResponse(
+                    responseDto,
+                    "Organization created successfully. Share the UniqueKey with members to join.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log(
+                    LogLevel.Warning,
+                    new EventId(),
+                    ex,
+                    ex,
+                    (state, exception) => exception?.Message ?? "Exception occurred"
+                );
+                await _unitOfWork.RollbackTransactionAsync();
+
+                throw;
+            }
+        }
+
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterUserAsync(RegisterUserDto dto)
         {
@@ -109,89 +278,7 @@ namespace VoteMe.Application.Services
             }
         }
 
-        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto)
-        {
-            if (string.IsNullOrWhiteSpace(dto.OrganizationName))
-                throw new BadRequestException("Organization name is required");
-            if (string.IsNullOrWhiteSpace(dto.AdminEmail))
-                throw new BadRequestException("Admin email is required");
-            if (string.IsNullOrWhiteSpace(dto.AdminFirstName))
-                throw new BadRequestException("Admin first name is required");
-            if (string.IsNullOrWhiteSpace(dto.AdminLastName))
-                throw new BadRequestException("Admin last name is required");
-            if (string.IsNullOrWhiteSpace(dto.Password))
-                throw new BadRequestException("Password is required");
-           
-            await _unitOfWork.BeginTransactionAsync();
-            try
-            {
-                var existingUser = await _userManager.FindByEmailAsync(dto.AdminEmail);
-                if (existingUser != null)
-                    throw new BadRequestException("Email already exists");
-
-                var displayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? null : dto.DisplayName.Trim();
-
-                var adminUser = new AppUser
-                {
-                    FirstName = dto.AdminFirstName.Trim(),
-                    LastName = dto.AdminLastName.Trim(),
-                    DisplayName = displayName!,
-                    Email = dto.AdminEmail.Trim().ToLower(),
-                    UserName = dto.AdminEmail.Trim().ToLower()
-                };
-
-                var result = await _userManager.CreateAsync(adminUser, dto.Password);
-                if (!result.Succeeded)
-                    throw new BadRequestException(result.Errors.First().Description);
-
-                await _userManager.AddToRoleAsync(adminUser, Roles.OrgAdmin);
-
-                var uniqueKey = Guid.NewGuid().ToString("N")[..8].ToUpper();
-
-                var organization = new Organization
-                {
-                    Name = dto.OrganizationName.Trim(),
-                    Description = string.IsNullOrWhiteSpace(dto.Description) ? string.Empty : dto.Description.Trim(),
-                    LogoUrl = string.IsNullOrWhiteSpace(dto.LogoUrl) ? string.Empty : dto.LogoUrl.Trim(),
-                    UniqueKey = uniqueKey,
-                    Email = dto.AdminEmail.Trim().ToLower()
-                };
-
-                await _unitOfWork.Organizations.AddAsync(organization);
-                await _unitOfWork.SaveChangesAsync();
-
-                var member = new OrganizationMember
-                {
-                    UserId = adminUser.Id,
-                    OrganizationId = organization.Id,
-                    IsAdmin = true,
-                    JoinedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.OrganizationMembers.AddAsync(member);
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitTransactionAsync();
-
-                await _messageBus.PublishAsync("organization-created", new OrganizationCreatedEvent
-                {
-                    AdminUserId = adminUser.Id,
-                    OrganizationName = organization.Name,
-                    AdminEmail = adminUser.Email!,
-                    AdminDisplayName = adminUser.DisplayName ?? $"{adminUser.FirstName} {adminUser.LastName}",
-                    UniqueKey = uniqueKey
-                });
-
-                return ApiResponse<CreatedOrganizationDto>.SuccessResponse(
-                    AuthMapper.ToCreatedOrganizationDto(organization, adminUser, uniqueKey),
-                    "Organization registered successfully");
-            }
-            catch
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                throw;
-            }
-        }
-
+      
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email))
@@ -261,5 +348,7 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<bool>.SuccessResponse(true, "Logout successful");
         }
+
+      
     }
 }

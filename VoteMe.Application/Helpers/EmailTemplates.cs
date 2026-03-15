@@ -281,5 +281,25 @@ namespace VoteMe.Application.Helpers
 
             return (subject, body);
         }
+
+        public static (string Subject, string Body) UserDeletedEmail(
+            string displayName,
+            DateTime deletedAt)
+        {
+            var subject = "Your VoteMe Account Has Been Deleted";
+
+            var body = $@"
+                <h2>Account Deletion Confirmation</h2>
+                <p>Dear {displayName},</p>
+                <p>Your VoteMe account has been soft-deleted on {deletedAt:MMMM dd, yyyy 'at' HH:mm UTC}.</p>
+                <p>All your personal data has been marked for deletion in accordance with privacy policies. 
+                   You will no longer be able to log in or participate in any organizations or elections.</p>
+                <p>If this was done in error or you believe your account was deleted without authorization, 
+                   please contact support immediately at support@voteme.com.</p>
+                <p>Thank you for using VoteMe.</p>
+                <p>Best regards,<br>The VoteMe Team</p>";
+
+            return (subject, body);
+        }
     }
 }

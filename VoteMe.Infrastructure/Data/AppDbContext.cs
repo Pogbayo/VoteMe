@@ -75,11 +75,11 @@ namespace VoteMe.Infrastructure.Data
                 .HasForeignKey(v => v.CandidateId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Vote>()
-                .HasOne(v => v.ElectionCategory)
-                .WithMany(ec => ec.Votes)
-                .HasForeignKey(v => v.ElectionCategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
+            //builder.Entity<Vote>()
+            //    .HasOne(v => v.ElectionCategory)
+            //    .WithMany(ec => ec.Votes)
+            //    .HasForeignKey(v => v.ElectionCategoryId)
+            //    .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Vote>()
                 .HasOne(v => v.Voter)

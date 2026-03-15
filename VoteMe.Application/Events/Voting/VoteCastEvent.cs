@@ -10,9 +10,8 @@ namespace VoteMe.Application.Events.Voting
         public Guid CandidateId { get; set; }
         public string CandidateFirstName { get; set; } = string.Empty;
         public string CandidateLastName { get; set; } = string.Empty;
-        public string CandidateFullName { get; set; } = string.Empty;
         public string? CandidateDisplayName { get; set; }
-        public Guid? UserId { get; set; }
+        public Guid? VoterId { get; set; }
         public string VoterFirstName { get; set; } = string.Empty;
         public string VoterLastName { get; set; } = string.Empty;
         public string VoterDisplayName { get; set; } = string.Empty;

@@ -18,5 +18,6 @@ namespace VoteMe.Application.Interface.IServices
         Task<bool> SendElectionResultsEmailAsync(List<string> emails, string electionName, List<ElectionCategoryResultDto> categoryResults, int totalVotes); Task SendOrganizationCreatedEmailAsync(List<string> emails, string fullName, string organizationName, string uniqueKey);
         Task SendWelcomeToOrganizationEmailAsync(List<string> emails, string fullName, string organizationName);
         Task SendOrganizationDeletedNotificationAsync(string organizationName,List<string> memberEmails,DateTime deletedAt);
+        Task SendUserDeletedEmailAsync(List<string> emails, string displayName, DateTime deletedAt);
     }
 }

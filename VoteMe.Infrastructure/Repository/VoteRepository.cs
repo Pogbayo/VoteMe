@@ -12,10 +12,10 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
-        public async Task<Vote?> ChangeVoteAsync(Guid userId, Guid electionId, Guid newCandidateId)
+        public async Task<Vote?> ChangeVoteAsync(Guid userId, Guid electionCategoryId, Guid newCandidateId)
         {
             var existingVote = await _dbSet
-                .FirstOrDefaultAsync(v => v.VoterId == userId && v.ElectionId == electionId);
+                .FirstOrDefaultAsync(v => v.VoterId == userId && v.ElectionCategoryId == electionCategoryId);
 
             if (existingVote == null)
                 return null;
@@ -27,17 +27,11 @@ namespace VoteMe.Infrastructure.Repository
             return existingVote;
         }
 
-        public async Task<IEnumerable<Vote>> GetElectionVotesAsync(Guid electionId)
-        {
-            return await _dbSet
-                .Where(v => v.ElectionId == electionId)
-                .ToListAsync();
-        }
 
-        public async Task<int> GetTotalVotesAsync(Guid electionId)
+        public async Task<int> GetCandidateTotalVotesInAnElectionCategoryAsync(Guid candidateId, Guid electionCategoryId)
         {
-            return await _dbSet
-                .CountAsync(v => v.ElectionId == electionId);
+            return await _context.Candidates
+                .CountAsync(v => v.Id == candidateId);
         }
 
         public async Task<Dictionary<Guid, int>> GetVoteCountsAsync(Guid electionId)
@@ -49,10 +43,10 @@ namespace VoteMe.Infrastructure.Repository
                 .ToDictionaryAsync(x => x.CandidateId, x => x.Count);
         }
 
-        public async Task<bool> HasUserVotedAsync(Guid userId, Guid electionId)
+        public async Task<bool> HasUserVotedAsync(Guid userId, Guid electionCategoryId, Guid electionId)
         {
             return await _dbSet
-                .AnyAsync(v => v.VoterId == userId && v.ElectionId == electionId);
+                .AnyAsync(v => v.VoterId == userId && v.ElectionId == electionId && v.ElectionCategoryId == electionCategoryId );
         }
     }
 }
