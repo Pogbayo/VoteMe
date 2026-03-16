@@ -97,7 +97,7 @@ namespace VoteMe.Application.Services
                 "Organization retrieved successfully");
         }
 
-        public async void UpdateOrganizationAsync(
+        public async Task<ApiResponse<bool>> UpdateOrganizationAsync(
             Guid organizationId,
             UpdateOrganizationDto dto)
         {
@@ -127,6 +127,7 @@ namespace VoteMe.Application.Services
             await _unitOfWork.SaveChangesAsync();
 
             await _cacheService.RemoveAsync($"organization-{organizationId}");
+            return ApiResponse<bool>.SuccessResponse(true);
         }
     }
 }

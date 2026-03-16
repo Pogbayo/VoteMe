@@ -6,7 +6,7 @@ namespace VoteMe.Application.Interface.IServices
     public interface IOrganizationService
     {
         Task<ApiResponse<OrganizationDto>> GetOrganizationAsync(Guid organizationId);
-        void UpdateOrganizationAsync(Guid organizationId, UpdateOrganizationDto dto);
+        Task<ApiResponse<bool>> UpdateOrganizationAsync(Guid organizationId, UpdateOrganizationDto dto);
         Task<ApiResponse<bool>> DeleteOrganizationAsync(Guid organizationId);
     }
 }

@@ -104,6 +104,7 @@ namespace VoteMe.Application.Services
 
             var alreadyMember = await _unitOfWork.OrganizationMembers
                 .IsMemberAsync(userId, organization.Id);
+
             if (alreadyMember)
                 throw new BadRequestException("You are already a member of this organization");
 

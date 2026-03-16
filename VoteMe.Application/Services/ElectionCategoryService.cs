@@ -99,12 +99,12 @@ public class ElectionCategoryService : IElectionCategoryService
             result, "ElectionCategory results retrieved successfully");
     }
 
-    public async Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync(Guid electionId, CreateElectionCategoryDto dto)
+    public async Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync( CreateElectionCategoryDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new BadRequestException("ElectionCategory name is required");
 
-        var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
+        var election = await _unitOfWork.Elections.GetByIdAsync(dto.ElectionId);
         if (election == null)
             throw new NotFoundException("Election not found");
 
@@ -114,13 +114,13 @@ public class ElectionCategoryService : IElectionCategoryService
         {
             Name = dto.Name.Trim(),
             Description = dto.Description?.Trim() ?? string.Empty,
-            ElectionId = electionId
+            ElectionId = dto.ElectionId
         };
 
         await _unitOfWork.ElectionCategories.AddAsync(electionCategory);
         await _unitOfWork.SaveChangesAsync();
 
-        await _cacheService.RemoveAsync($"election-categories-{electionId}");
+        await _cacheService.RemoveAsync($"election-categories-{dto.ElectionId}");
 
         _logger.LogInformation(
             "ElectionCategory '{CategoryName}' created in election '{ElectionName}' by user {UserId}",

@@ -1,5 +1,4 @@
-﻿using VoteMe.Application.DTOs.Candidate;
-using VoteMe.Application.DTOs.ElectionCategory;
+﻿using VoteMe.Application.DTOs.ElectionCategory;
 
 namespace VoteMe.Application.DTOs.Election
 {
@@ -10,6 +9,7 @@ namespace VoteMe.Application.DTOs.Election
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public bool IsPrivate { get; set; } = false;
+        public Guid OrganizationId { get; set; }
         public List<CreateElectionCategoryDto> Categories { get; set; } = new();
     }
 }

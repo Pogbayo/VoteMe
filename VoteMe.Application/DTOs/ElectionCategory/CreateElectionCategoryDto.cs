@@ -14,5 +14,7 @@ namespace VoteMe.Application.DTOs.ElectionCategory
 
         [MinLength(1, ErrorMessage = "At least one candidate is required.")]
         public List<CreateCandidateDto> Candidates { get; set; } = new();
+
+        public Guid ElectionId { get; set; }
     }
 }

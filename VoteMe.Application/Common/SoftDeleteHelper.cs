@@ -10,14 +10,14 @@ namespace VoteMe.Application.Common
             CancellationToken ct = default)
         {
             var org = await unitOfWork.Organizations.GetByIdAsync(organizationId);
-            if (org != null && !org.IsDeleted)
+            if (org != null)
             {
                 org.MarkAsDeleted();
                 unitOfWork.Organizations.Update(org);
             }
 
             var members = await unitOfWork.OrganizationMembers
-                .FindAsync(m => m.OrganizationId == organizationId && !m.IsDeleted);
+                .FindAsync(m => m.OrganizationId == organizationId);
             foreach (var m in members)
             {
                 m.MarkAsDeleted();
@@ -25,7 +25,7 @@ namespace VoteMe.Application.Common
             }
 
             var elections = await unitOfWork.Elections
-                .FindAsync(e => e.OrganizationId == organizationId && !e.IsDeleted);
+                .FindAsync(e => e.OrganizationId == organizationId);
             foreach (var e in elections)
             {
                 e.MarkAsDeleted();
@@ -33,7 +33,7 @@ namespace VoteMe.Application.Common
             }
 
             var categories = await unitOfWork.ElectionCategories
-                .FindAsync(ec => ec.Election.OrganizationId == organizationId && !ec.IsDeleted);
+                .FindAsync(ec => ec.Election.OrganizationId == organizationId);
             foreach (var c in categories)
             {
                 c.MarkAsDeleted();
@@ -41,7 +41,7 @@ namespace VoteMe.Application.Common
             }
 
             var candidates = await unitOfWork.Candidates
-                .FindAsync(c => c.ElectionCategory.Election.OrganizationId == organizationId && !c.IsDeleted);
+                .FindAsync(c => c.ElectionCategory.Election.OrganizationId == organizationId);
             foreach (var c in candidates)
             {
                 c.MarkAsDeleted();

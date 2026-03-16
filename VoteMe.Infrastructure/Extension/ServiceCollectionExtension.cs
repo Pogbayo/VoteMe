@@ -164,6 +164,27 @@ namespace VoteMe.Infrastructure.Extension
                  });
             });
 
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("SuperAdmin", policy =>
+                    policy.RequireRole("SuperAdmin"));
+
+                options.AddPolicy("OrgAdmin", policy =>
+                    policy.RequireRole("OrgAdmin"));
+
+                options.AddPolicy("Voter", policy =>
+                    policy.RequireRole("Voter"));
+
+                options.AddPolicy("OrgAdminOrSuperAdmin", policy =>
+                    policy.RequireRole("OrgAdmin", "SuperAdmin"));
+
+                options.AddPolicy("Authenticated", policy =>
+                    policy.RequireRole("OrgAdmin", "SuperAdmin","voter"));
+
+                //options.AddPolicy("Authenticated", policy =>
+                //    policy.RequireAuthenticatedUser());
+            });
+
             //Hangfire
             services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)

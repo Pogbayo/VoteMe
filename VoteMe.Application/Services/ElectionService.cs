@@ -54,7 +54,7 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<ElectionDto>.SuccessResponse(result, "Election retrieved successfully");
         }
-        public async Task<ApiResponse<ElectionDto>> CreateElectionAsync(Guid organizationId, CreateElectionDto dto)
+        public async Task<ApiResponse<ElectionDto>> CreateElectionAsync( CreateElectionDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
                 throw new BadRequestException("Election name is required");
@@ -67,7 +67,7 @@ namespace VoteMe.Application.Services
             if (dto.StartDate <= DateTimeOffset.UtcNow)
                 throw new BadRequestException("Start date must be in the future");
 
-            var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
+            var organization = await _unitOfWork.Organizations.GetByIdAsync(dto.OrganizationId);
             if (organization == null)
                 throw new NotFoundException("Organization not found");
 
@@ -79,7 +79,7 @@ namespace VoteMe.Application.Services
                     : dto.Description.Trim(),
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                OrganizationId = organizationId,
+                OrganizationId = dto.OrganizationId,
                 Status = ElectionStatus.Pending
             };
 
@@ -89,13 +89,13 @@ namespace VoteMe.Application.Services
             _electionScheduler.ScheduleOpenElection(election.Id, election.StartDate);
             _electionScheduler.ScheduleCloseElection(election.Id, election.EndDate);
 
-            await _cacheService.RemoveAsync($"organization-elections-{organizationId}");
+            await _cacheService.RemoveAsync($"organization-elections-{dto.OrganizationId}");
 
             _logger.LogInformation("Election '{Name}' created for organization '{OrgName}'",
                 election.Name, organization.Name);
 
             var memberEmails = await _unitOfWork.OrganizationMembers
-                .GetOrganizationMemberEmailsAsync(organizationId);
+                .GetOrganizationMemberEmailsAsync(dto.OrganizationId);
 
             await _messageBus.PublishAsync("election-created", new ElectionCreatedEvent
             {
