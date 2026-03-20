@@ -19,7 +19,6 @@ namespace VoteMe.Application.Services
     public class AuthService : IAuthService
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<AppRole> _roleManager;
         private readonly IMessageBus _messageBus;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITokenService _tokenService;
@@ -39,7 +38,6 @@ namespace VoteMe.Application.Services
             _imageService = imageService;
             _logger = logger;
             _userManager = userManager;
-            _roleManager = roleManager;
             _messageBus = messageBus;
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
@@ -61,9 +59,7 @@ namespace VoteMe.Application.Services
         }
 
 
-        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(
-             CreateOrganizationDto dto,
-             IFormFile? logoFile)
+        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.OrganizationName))
                 throw new BadRequestException("Organization name is required");
@@ -142,11 +138,11 @@ namespace VoteMe.Application.Services
                 await _unitOfWork.Organizations.AddAsync(organization);
                 await _unitOfWork.SaveChangesAsync();
 
-                string? logoUrl = null;
-                if (logoFile != null && logoFile.Length > 0)
+                var logoUrl = (string)null!;
+                if (dto.LogoFile != null && dto.LogoFile.Length > 0)
                 {
                     logoUrl = await _imageService.UploadImageAsync(
-                        logoFile,
+                        dto.LogoFile,
                         "Organization",
                         organization.Id); // folder: /Organization/{organization.Id}/logo
 

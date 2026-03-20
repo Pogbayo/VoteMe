@@ -11,6 +11,6 @@ namespace VoteMe.Application.Interface.IServices
         Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto);
         Task<ApiResponse<bool>> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
         Task<ApiResponse<bool>> LogoutAsync(Guid userId);
-        Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto, IFormFile logo);
+        Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto);
     }
 }

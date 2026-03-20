@@ -56,10 +56,9 @@ public class AuthController : BaseController
     [HttpPost("register-organization")]
     [AllowAnonymous]
     public async Task<IActionResult> RegisterOrganization(
-        [FromForm] CreateOrganizationDto dto,
-        [FromForm] IFormFile? logoFile)
+        [FromForm] CreateOrganizationDto dto)
     {
-        var result = await _authService.RegisterOrganizationAsync(dto, logoFile!);
+        var result = await _authService.RegisterOrganizationAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 }

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.AWS;
@@ -21,6 +22,8 @@ using VoteMe.Infrastructure.Consumers.Organization;
 using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
 using VoteMe.Infrastructure.Jobs;
+using VoteMe.Infrastructure.Repositories;
+using VoteMe.Infrastructure.Repository;
 using VoteMe.Infrastructure.Services;
 using VoteMe.Infrastructure.Settings;
 
@@ -62,7 +65,7 @@ namespace VoteMe.Infrastructure.Extension
                 sqlOptions.CommandTimeout(60)));
 
             //Identity
-            services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
+            services.AddIdentity<AppUser, AppRole>(options =>
             {
                 options.Password.RequireDigit = true;
                 options.Password.RequireUppercase = true;
@@ -196,6 +199,18 @@ namespace VoteMe.Infrastructure.Extension
             services.AddScoped<IElectionJobService, ElectionJobService>();
             services.AddScoped<IElectionScheduler, ElectionScheduler>();
             services.AddScoped<IImageService, ImageService>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<ICacheService, CacheService>();
+            services.AddSingleton<IMessageBus, MessageBus>();
+            services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+            services.AddScoped<ICandidateRepository, CandidateRepository>();
+            services.AddScoped<IElectionCategoryRepository, ElectionCategoryRepository>();
+            services.AddScoped<IElectionRepository, ElectionRepository>();
+            services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
+            services.AddScoped<IVoteRepository, VoteRepository>();
+            services.AddScoped<ITokenService, TokenService>();
 
 
             // Consumers
@@ -215,7 +230,6 @@ namespace VoteMe.Infrastructure.Extension
             services.AddHostedService<CandidateUpdatedConsumer>();
             services.AddHostedService<CandidateDeletedConsumer>();
 
-            services.AddSingleton<IMessageBus, MessageBus>();
             services.AddAuthorization();
             services.AddHttpContextAccessor();
 

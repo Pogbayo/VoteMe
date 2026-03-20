@@ -31,6 +31,7 @@ namespace VoteMe.Infrastructure.Data
             var userManager = services.GetRequiredService<UserManager<AppUser>>();
             var settings = services.GetRequiredService<IOptions<SuperAdminSettings>>().Value;
 
+            // Note: SuperAdmin is seeded separately and does not require an organization
             var superAdmin = await userManager.FindByEmailAsync(settings.Email);
             if (superAdmin == null)
             {

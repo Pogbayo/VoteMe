@@ -20,11 +20,9 @@ namespace VoteMe.Application.Services
         private readonly ICacheService _cacheService;
         private readonly ILogger<UserService> _logger;
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<AppUser> _roleManager;
-        public UserService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager,RoleManager<AppUser> roleManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<UserService> logger)
+        public UserService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<UserService> logger)
         {
             _userManager = userManager;
-            _roleManager = roleManager;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _messageBus = messageBus;
