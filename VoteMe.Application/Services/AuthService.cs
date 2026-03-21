@@ -12,6 +12,7 @@ using VoteMe.Application.Mappers.Auth;
 using VoteMe.Application.Mappers.Organization;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
@@ -24,11 +25,12 @@ namespace VoteMe.Application.Services
         private readonly ITokenService _tokenService;
         private readonly IImageService _imageService;
         private readonly ILogger<AuthService> _logger;
-
+        //private readonly IAuditLogService _auditLogService;
 
         public AuthService(
             IImageService imageService,
             ILogger<AuthService> logger,
+            //IAuditLogService auditLogService,
             UserManager<AppUser> userManager,
             RoleManager<AppRole> roleManager,
             IMessageBus messageBus,
@@ -153,7 +155,7 @@ namespace VoteMe.Application.Services
 
                     organization.LogoUrl = logoUrl;
                     _unitOfWork.Organizations.Update(organization);
-                    await _unitOfWork.SaveChangesAsync();
+                    //await _unitOfWork.SaveChangesAsync();
                 }
 
                 var membership = new OrganizationMember
@@ -198,7 +200,6 @@ namespace VoteMe.Application.Services
                 throw;
             }
         }
-
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterUserAsync(RegisterUserDto dto)
         {
@@ -274,7 +275,6 @@ namespace VoteMe.Application.Services
             }
         }
 
-      
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email))
@@ -295,6 +295,12 @@ namespace VoteMe.Application.Services
 
             var roles = await _userManager.GetRolesAsync(user);
             var token = await _tokenService.GenerateAccessTokenAsync(user);
+            
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: user.Id,
+                action: AuditAction.Login,
+                details: $"User {user.Email} (ID: {user.Id}) logged in"
+            );
 
             return ApiResponse<AuthResponseDto>.SuccessResponse(
                 AuthMapper.ToAuthResponseDto(user, token, roles),
@@ -341,6 +347,12 @@ namespace VoteMe.Application.Services
 
             user.TokenVersion++;
             await _userManager.UpdateAsync(user);
+            
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: user.Id,
+                action: AuditAction.Logout,
+                details: $"User {user.Email} (ID: {user.Id}) logged out"
+            );
 
             return ApiResponse<bool>.SuccessResponse(true, "Logout successful");
         }

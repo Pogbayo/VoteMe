@@ -53,8 +53,7 @@ namespace VoteMe.Infrastructure.Consumers.Election
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.ClosedByUserId,
-                    "ElectionClosed",
-                    "Election",
+                    Domain.Enum.AuditAction.ElectionClose,
                     $"Election '{eventData.ElectionName}' closed with {eventData.TotalVotes} total votes"
                 );
                 await unitOfWork.SaveChangesAsync();

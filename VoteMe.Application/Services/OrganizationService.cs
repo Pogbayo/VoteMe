@@ -104,7 +104,7 @@ namespace VoteMe.Application.Services
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
             if (organization == null || organization.IsDeleted)
                 throw new NotFoundException("Organization not found");
-
+            var userId = _currentUserService.UserId;
             await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
                 _unitOfWork,
                 _currentUserService,
@@ -127,6 +127,8 @@ namespace VoteMe.Application.Services
             await _unitOfWork.SaveChangesAsync();
 
             await _cacheService.RemoveAsync($"organization-{organizationId}");
+            await _unitOfWork.AuditLogs.LogAsync(userId, AuditAction.Update, $"User {userId} updated organization {organizationId}");
+
             return ApiResponse<bool>.SuccessResponse(true);
         }
     }

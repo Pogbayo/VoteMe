@@ -148,7 +148,6 @@ public class CandidateService : ICandidateService
         var dto = CandidateMapper.ToDto(candidate);
 
         await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(15));
-
         return ApiResponse<CandidateDto>.SuccessResponse(dto, "Candidate retrieved successfully");
     }
 

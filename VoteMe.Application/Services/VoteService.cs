@@ -58,9 +58,9 @@ namespace VoteMe.Application.Services
             if (existingVote)
             {
                 var oldVote = await _unitOfWork.Votes.FindOneAsync(
-                    v => v.VoterId == userId &&
-                         v.ElectionCategoryId == dto.ElectionCategoryId &&
-                         !v.IsDeleted);
+                    v => v.VoterId == userId 
+                         &&
+                         v.ElectionCategoryId == dto.ElectionCategoryId);
 
                 if (oldVote != null)
                 {

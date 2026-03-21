@@ -52,8 +52,7 @@ namespace VoteMe.Infrastructure.Consumers.Voting
 
                 await unitOfWork.AuditLogs.LogAsync(
                    eventData.VoterId ?? Guid.Empty,
-                   "VoteChanged",
-                   "Vote",
+                    Domain.Enum.AuditAction.VoteChanged,
                    $"User changed vote to '{eventData.NewCandidateFirstName} {eventData.NewCandidateLastName}' in election '{eventData.ElectionName}'"
                );
                 await unitOfWork.SaveChangesAsync();

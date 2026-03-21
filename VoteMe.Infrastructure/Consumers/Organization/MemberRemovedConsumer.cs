@@ -38,8 +38,7 @@ namespace VoteMe.Infrastructure.Consumers.Organization
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.RemovedByUserId,
-                    "MemberRemoved",
-                    "OrganizationMember",
+                    Domain.Enum.AuditAction.Remove,
                     $"'{eventData.DisplayName}' was removed from organization '{eventData.OrganizationName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

@@ -45,8 +45,7 @@ namespace VoteMe.Infrastructure.Consumers.Organization
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.UserId,
-                    "MemberLeft",
-                    "OrganizationMember",
+                    Domain.Enum.AuditAction.Left,
                     $"'{eventData.DisplayName}' left organization '{eventData.OrganizationName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

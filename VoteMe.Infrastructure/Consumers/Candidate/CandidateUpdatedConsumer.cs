@@ -38,8 +38,7 @@ namespace VoteMe.Infrastructure.Consumers.Candidate
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.UpdatedByUserId,
-                    "CandidateUpdated",
-                    "Candidate",
+                    Domain.Enum.AuditAction.Update,
                     $"Candidate '{eventData.CandidateFirstName} {eventData.CandidateLastName}' updated in ElectionCategory '{eventData.ElectionCategoryName}' in election '{eventData.ElectionName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

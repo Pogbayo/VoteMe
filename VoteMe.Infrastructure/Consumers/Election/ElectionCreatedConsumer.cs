@@ -47,8 +47,7 @@ namespace VoteMe.Infrastructure.Consumers.Election
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.CreatedByUserId,
-                    "ElectionCreated",
-                    "Election",
+                    Domain.Enum.AuditAction.Create,
                     $"Election '{eventData.ElectionName}' created with {eventData.ElectionCategoryNames.Count} categories in '{eventData.OrganizationName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

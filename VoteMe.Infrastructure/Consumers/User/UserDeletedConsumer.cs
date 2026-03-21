@@ -49,8 +49,7 @@ namespace VoteMe.Infrastructure.Consumers.User
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.DeletedByUserId,
-                    "UserDeleted",
-                    "AppUser",
+                    Domain.Enum.AuditAction.Delete,
                     $"User '{eventData.DisplayName}' (ID: {eventData.UserId}) was soft-deleted by {eventData.DeletedByUserId}"
                 );
 

@@ -198,6 +198,8 @@ namespace VoteMe.Infrastructure.Extension
             //Jobs
             services.AddScoped<IElectionJobService, ElectionJobService>();
             services.AddScoped<IElectionScheduler, ElectionScheduler>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IImageService, ImageService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ICacheService, CacheService>();
@@ -215,7 +217,7 @@ namespace VoteMe.Infrastructure.Extension
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();
-            services.AddHostedService<AuditLogConsumer>();
+            //services.AddHostedService<AuditLogConsumer>();
             services.AddHostedService<PasswordChangedConsumer>();
             services.AddHostedService<OrganizationCreatedConsumer>();
             services.AddHostedService<MemberJoinedConsumer>();

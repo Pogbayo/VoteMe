@@ -48,9 +48,8 @@ namespace VoteMe.Infrastructure.Consumers.Auth
 
                 await unitOfWork.AuditLogs.LogAsync(
                    eventData.UserId,
-                   "UserRegistered",
-                   "AppUser",
-                   $"User '{eventData.DisplayName}' registered successfully"
+                    Domain.Enum.AuditAction.Create,
+                    $"User '{eventData.DisplayName}' registered successfully"
                 );
 
                 await unitOfWork.SaveChangesAsync();

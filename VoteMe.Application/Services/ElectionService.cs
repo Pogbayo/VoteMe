@@ -171,8 +171,10 @@ namespace VoteMe.Application.Services
             var result = ElectionMapper.ToDtoList(items);
 
             await _cacheService.SetAsync(cacheKey, (result, totalCount), TimeSpan.FromMinutes(10));
+
             return ApiResponse<(IEnumerable<ElectionDto>, int)>.SuccessResponse((result, totalCount), "Elections retrieved successfully");
         }
+
         public async Task<ApiResponse<bool>> DeleteElectionAsync(Guid electionId)
         {
             var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
@@ -203,6 +205,9 @@ namespace VoteMe.Application.Services
             var election = await _unitOfWork.Elections.GetFullElectionAsync(electionId);
             if (election == null)
                 throw new NotFoundException("Election not found");
+
+            if (election.Status == ElectionStatus.Active)
+                throw new BadRequestException("Election is still active. Results are not available until the election is closed.");
 
             var totalVotes = election.Categories
                      .Sum(c => c.Candidates.Sum(cand => cand.Votes.Count));

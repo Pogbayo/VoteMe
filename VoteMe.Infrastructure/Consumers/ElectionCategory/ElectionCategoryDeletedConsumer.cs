@@ -38,8 +38,7 @@ namespace VoteMe.Infrastructure.Consumers.ElectionCategory
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.DeletedByUserId,
-                    "ElectionCategoryDeleted",
-                    "ElectionCategory",
+                    Domain.Enum.AuditAction.Delete,
                     $"ElectionCategory '{eventData.ElectionCategoryName}' deleted from election '{eventData.ElectionName}'"
                 );
 

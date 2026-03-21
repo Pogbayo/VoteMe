@@ -8,6 +8,7 @@ using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.User;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
@@ -138,7 +139,7 @@ namespace VoteMe.Application.Services
             };
 
             await _cacheService.SetAsync(cacheKey, cacheResult, TimeSpan.FromMinutes(10));
-
+         
             return ApiResponse<IEnumerable<UserDto>>.SuccessResponse(
                 userDtoList,
                 $"Retrieved {userDtoList.Count} users (page {page} of {pageSize}, total {totalCount})");
@@ -168,6 +169,11 @@ namespace VoteMe.Application.Services
             var userDto = UserMapper.ToDto(user, roles);
 
             await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: _currentUserService.UserId,
+                action: AuditAction.Read,
+                details: $"User {_currentUserService.UserId} retrieved user {user.Email} (ID: {user.Id})"
+            );
 
             return ApiResponse<UserDto>.SuccessResponse(
                 userDto,
@@ -220,8 +226,7 @@ namespace VoteMe.Application.Services
 
             await _unitOfWork.AuditLogs.LogAsync(
                 userId: _currentUserService.UserId,
-                action: "UserUpdated",
-                entity: "AppUser",
+                action: AuditAction.Update,
                 details: $"User {user.Email} (ID: {userId}) updated by {_currentUserService.UserId}. Changed fields: {string.Join(", ", changes)}"
             );
 

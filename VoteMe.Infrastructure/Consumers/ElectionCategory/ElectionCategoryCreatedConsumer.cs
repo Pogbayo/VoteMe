@@ -38,8 +38,7 @@ namespace VoteMe.Infrastructure.Consumers.ElectionCategory
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.CreatedByUserId,
-                    "ElectionCategoryCreated",
-                    "ElectionCategory",
+                     Domain.Enum.AuditAction.Create,
                     $"ElectionCategory '{eventData.ElectionCategoryName}' created under election '{eventData.ElectionName}'"
                 );
 

@@ -12,11 +12,11 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
-        public async Task<Organization?> GetByEmailAsync(string email)
-        {
-            return await _dbSet
-                .FirstOrDefaultAsync(o => o.Email == email);
-        }
+        //public async Task<Organization?> GetByEmailAsync(string email)
+        //{
+        //    return await _dbSet
+        //        .FirstOrDefaultAsync(o => o.Email == email);
+        //}
 
         public async Task<Organization?> GetByUniqueKeyAsync(string uniqueKey)
         {

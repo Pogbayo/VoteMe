@@ -7,6 +7,7 @@ using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Organization;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
@@ -55,6 +56,14 @@ namespace VoteMe.Application.Services
 
             _unitOfWork.OrganizationMembers.Update(member);
             await _unitOfWork.SaveChangesAsync();
+
+            await _unitOfWork.AuditLogs.AddAsync(new AuditLog
+            {
+                UserId = _currentUserService.UserId,
+                Action = AuditAction.DemoteFromAdmin,
+                Details = $"User {userId} demoted from admin in organization {organizationId}",
+                Timestamp = DateTime.UtcNow
+            });
 
             return ApiResponse<bool>.SuccessResponse(true, "User demoted from admin successfully");
         }
@@ -193,6 +202,8 @@ namespace VoteMe.Application.Services
 
             _logger.LogInformation("User {UserId} promoted to admin in organization {OrganizationId}",
                 userId, organizationId);
+
+            await _unitOfWork.AuditLogs.LogAsync(requesterId,AuditAction.PromoteToAdmin, $"User {userId} promoted to admin in organization {organizationId}");
 
             return ApiResponse<bool>.SuccessResponse(true, "Member promoted to admin successfully");
         }
