@@ -180,7 +180,7 @@ namespace VoteMe.Application.Services
 
                 await _unitOfWork.CommitTransactionAsync();
 
-                var responseDto = OrganizationMapper.ToCreatedOrganizationDto(organization);
+                var responseDto = OrganizationMapper.ToCreatedOrganizationDto(organization, adminUser);
 
                 return ApiResponse<CreatedOrganizationDto>.SuccessResponse(
                     responseDto,
@@ -292,6 +292,9 @@ namespace VoteMe.Application.Services
 
             if (user.IsDeleted)
                 throw new UnauthorizedException("Account has been deactivated");
+
+            user.TokenVersion++;
+            await _userManager.UpdateAsync(user);
 
             var roles = await _userManager.GetRolesAsync(user);
             var token = await _tokenService.GenerateAccessTokenAsync(user);

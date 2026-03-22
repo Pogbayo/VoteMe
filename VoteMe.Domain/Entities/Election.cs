@@ -12,6 +12,6 @@ namespace VoteMe.Domain.Entities
         public bool IsPrivate { get; set; } = false;
         public Guid OrganizationId { get; set; }
         public Organization Organization { get; set; } = null!;
-        public ICollection<ElectionCategory> Categories { get; set; } = new List<ElectionCategory>();
+        public ICollection<ElectionCategory>? Categories { get; set; } = new List<ElectionCategory>();
     }
 }

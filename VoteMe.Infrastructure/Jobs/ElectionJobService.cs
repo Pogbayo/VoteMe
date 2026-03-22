@@ -24,46 +24,46 @@ namespace VoteMe.Infrastructure.Jobs
             _logger = logger;
         }
 
-        public async Task OpenElectionAsync(Guid electionId)
-        {
-            var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
-            if (election == null)
-            {
-                _logger.LogWarning("OpenElectionJob: Election {ElectionId} not found", electionId);
-                return;
-            }
+        //public async Task OpenElectionAsync(Guid electionId)
+        //{
+        //    var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
+        //    if (election == null)
+        //    {
+        //        _logger.LogWarning("OpenElectionJob: Election {ElectionId} not found", electionId);
+        //        return;
+        //    }
 
-            if (election.Status != ElectionStatus.Pending)
-            {
-                _logger.LogWarning("OpenElectionJob: Election {ElectionId} is not Pending — skipping", electionId);
-                return;
-            }
+        //    if (election.Status != ElectionStatus.Pending)
+        //    {
+        //        _logger.LogWarning("OpenElectionJob: Election {ElectionId} is not Pending — skipping", electionId);
+        //        return;
+        //    }
 
-            election.Status = ElectionStatus.Active;
-            election.UpdateTimestamps();
+        //    election.Status = ElectionStatus.Active;
+        //    election.UpdateTimestamps();
 
-            _unitOfWork.Elections.Update(election);
-            await _unitOfWork.SaveChangesAsync();
+        //    _unitOfWork.Elections.Update(election);
+        //    await _unitOfWork.SaveChangesAsync();
 
-            _logger.LogInformation("Election '{Name}' automatically opened", election.Name);
+        //    _logger.LogInformation("Election '{Name}' automatically opened", election.Name);
 
-            var memberEmails = await _unitOfWork.OrganizationMembers
-                .GetOrganizationMemberEmailsAsync(election.OrganizationId);
+        //    var memberEmails = await _unitOfWork.OrganizationMembers
+        //        .GetOrganizationMemberEmailsAsync(election.OrganizationId);
 
-            var categoryNames = election.Categories
-                .Select(c => c.Name)
-                .ToList();
+        //    var categoryNames = election.Categories!
+        //        .Select(c => c.Name)
+        //        .ToList();
 
-            await _messageBus.PublishAsync("election-opened", new ElectionOpenedEvent
-            {
-                ElectionId = election.Id,
-                OpenedByUserId = Guid.Empty,
-                ElectionName = election.Name,
-                OrganizationName = string.Empty,
-                ElectionCategoryNames = categoryNames,
-                MemberEmails = memberEmails.ToList()
-            });
-        }
+        //    await _messageBus.PublishAsync("election-opened", new ElectionOpenedEvent
+        //    {
+        //        ElectionId = election.Id,
+        //        OpenedByUserId = Guid.Empty,
+        //        ElectionName = election.Name,
+        //        OrganizationName = string.Empty,
+        //        ElectionCategoryNames = categoryNames,
+        //        MemberEmails = memberEmails.ToList()
+        //    });
+        //}
 
         public async Task CloseElectionAsync(Guid electionId)
         {
@@ -91,14 +91,14 @@ namespace VoteMe.Infrastructure.Jobs
             var memberEmails = await _unitOfWork.OrganizationMembers
                 .GetOrganizationMemberEmailsAsync(election.OrganizationId);
 
-            var totalVotes = election.Categories
-                     .Sum(c => c.Candidates
+            var totalVotes = election.Categories!
+                     .Sum(c => c.Candidates!
                         .Sum(c => c.Votes.Count));
 
-            var categoryResults = election.Categories.Select(c =>
+            var categoryResults = election.Categories?.Select(c =>
             {
-                var catTotalVotes = c.Candidates.Sum(c => c.Votes.Count);
-                var winner = c.Candidates
+                var catTotalVotes = c.Candidates?.Sum(c => c.Votes.Count) ?? 0;
+                var winner = c.Candidates?
                     .OrderByDescending(cand => cand.Votes.Count)
                     .FirstOrDefault();
 
@@ -127,7 +127,7 @@ namespace VoteMe.Infrastructure.Jobs
                 ElectionName = election.Name,
                 OrganizationName = string.Empty,
                 TotalVotes = totalVotes,
-                CategoryResults = categoryResults,
+                CategoryResults = categoryResults!,
                 MemberEmails = memberEmails.ToList()
             });
         }

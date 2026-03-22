@@ -1,4 +1,6 @@
-﻿using System.Security.Claims;
+﻿using System.Security.Authentication;
+using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Amazon.SimpleEmail;
 using Hangfire;
@@ -10,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
@@ -22,10 +25,12 @@ using VoteMe.Infrastructure.Consumers.Organization;
 using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
 using VoteMe.Infrastructure.Jobs;
+using VoteMe.Infrastructure.Jwt;
 using VoteMe.Infrastructure.Repositories;
 using VoteMe.Infrastructure.Repository;
 using VoteMe.Infrastructure.Services;
 using VoteMe.Infrastructure.Settings;
+using System.Net.Security;
 
 namespace VoteMe.Infrastructure.Extension
 {
@@ -41,8 +46,11 @@ namespace VoteMe.Infrastructure.Extension
             }
             services.Configure<SuperAdminSettings>(configuration.GetSection("SuperAdmin"));
 
-            //AWS Settings
-            services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+            ////AWS Settings
+            //services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+
+            //JWT Settings
+            var jwtSettings = services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
             //CloudinarySettings
             services.Configure<CloudinarySettings>(configuration.GetSection("CloudinarySettings"));
@@ -74,16 +82,22 @@ namespace VoteMe.Infrastructure.Extension
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
-            // JWT Authentication
-            var jwtKey = configuration["JwtSettings:Key"];
-            var key = Encoding.UTF8.GetBytes(jwtKey!);
-
-
             //Redis
-            services.AddStackExchangeRedisCache(options =>
+
+            var options = new ConfigurationOptions
             {
-                options.Configuration = configuration["Redis:Configuration"];
-                options.InstanceName = "VoteMe:";
+                EndPoints = { "redis-12945.c247.eu-west-1-1.ec2.cloud.redislabs.com:12945" },
+                User = "default",
+                Password = "AecLgrRPnPFtL44kZmydioaQsDh3z2WW",
+                Ssl = false,          // ← try without SSL
+                AbortOnConnectFail = false,
+                ConnectTimeout = 10000,
+                SyncTimeout = 5000,
+            };
+
+            services.AddStackExchangeRedisCache(cacheOptions =>
+            {
+                cacheOptions.ConfigurationOptions = options;
             });
 
             services.AddAuthentication(options =>
@@ -93,22 +107,31 @@ namespace VoteMe.Infrastructure.Extension
             })
             .AddJwtBearer(options =>
             {
+                var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>();
+
+                if (jwtSettings == null)
+                     throw new Exception("JWT is null");
+                
+                if (string.IsNullOrEmpty(jwtSettings.Key))
+                     throw new Exception("JWT Key is missing!");
+                
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["JwtSettings:Issuer"],
-                    ValidAudience = configuration["JwtSettings:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                    ValidIssuer = jwtSettings!.Issuer,
+                    ValidAudience = jwtSettings.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                              Encoding.UTF8.GetBytes(jwtSettings.Key))
                 };
 
                 options.Events = new JwtBearerEvents
                 {
                     OnTokenValidated = async context =>
                     {
-                        var userManager = context.HttpContext.RequestServices
+                        var userManager = context.HttpContext.RequestServices   
                             .GetRequiredService<UserManager<AppUser>>();
 
                         var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -144,8 +167,8 @@ namespace VoteMe.Infrastructure.Extension
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
                     BearerFormat = "JWT",
                     In = ParameterLocation.Header,
                     Description = "Enter: Bearer {your token}"
@@ -169,23 +192,11 @@ namespace VoteMe.Infrastructure.Extension
 
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("SuperAdmin", policy =>
-                    policy.RequireRole("SuperAdmin"));
-
-                options.AddPolicy("OrgAdmin", policy =>
-                    policy.RequireRole("OrgAdmin"));
-
-                options.AddPolicy("Voter", policy =>
-                    policy.RequireRole("Voter"));
-
-                options.AddPolicy("OrgAdminOrSuperAdmin", policy =>
-                    policy.RequireRole("OrgAdmin", "SuperAdmin"));
-
-                options.AddPolicy("Authenticated", policy =>
-                    policy.RequireRole("OrgAdmin", "SuperAdmin","voter"));
-
-                //options.AddPolicy("Authenticated", policy =>
-                //    policy.RequireAuthenticatedUser());
+                options.AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"));
+                options.AddPolicy("OrgAdmin", policy => policy.RequireRole("OrgAdmin"));
+                options.AddPolicy("Voter", policy => policy.RequireRole("Voter"));
+                options.AddPolicy("OrgAdminOrSuperAdmin", policy => policy.RequireRole("OrgAdmin", "SuperAdmin"));
+                options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
             });
 
             //Hangfire
@@ -213,7 +224,6 @@ namespace VoteMe.Infrastructure.Extension
             services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
             services.AddScoped<IVoteRepository, VoteRepository>();
             services.AddScoped<ITokenService, TokenService>();
-
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();

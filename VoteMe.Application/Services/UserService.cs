@@ -94,9 +94,7 @@ namespace VoteMe.Application.Services
                     $"Retrieved {cached.Users.Count} users from cache (page {page} of {pageSize}, total {cached.TotalCount})");
             }
 
-            var organization = await _unitOfWork.Organizations.FindOneAsync(
-                o => o.Id == organizationId && !o.IsDeleted);
-
+            var organization = await _unitOfWork.Organizations.GetWithMembersAsync(organizationId);
             if (organization == null)
                 throw new NotFoundException("Organization with provided ID does not exist or has been deleted");
 
@@ -152,34 +150,43 @@ namespace VoteMe.Application.Services
 
             var cacheKey = $"user-{userId}";
 
-            var cached = await _cacheService.GetAsync<UserDto>(cacheKey);
-            if (cached != null)
+            UserDto? cached = null;
+            try
             {
-                return ApiResponse<UserDto>.SuccessResponse(
-                    cached,
-                    "User retrieved successfully (from cache)");
+                cached = await _cacheService.GetAsync<UserDto>(cacheKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cache read failed for key {Key}, falling through to DB", cacheKey);
             }
 
+            if (cached != null)
+                return ApiResponse<UserDto>.SuccessResponse(cached, "User retrieved successfully (from cache)");
+
             var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null )  
+            if (user == null)
                 throw new NotFoundException("User with provided ID not found");
 
             var roles = await _userManager.GetRolesAsync(user);
-
             var userDto = UserMapper.ToDto(user, roles);
 
-            await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
+            try
+            {
+                await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cache write failed for key {Key}", cacheKey);
+            }
+
             await _unitOfWork.AuditLogs.LogAsync(
                 userId: _currentUserService.UserId,
                 action: AuditAction.Read,
                 details: $"User {_currentUserService.UserId} retrieved user {user.Email} (ID: {user.Id})"
             );
 
-            return ApiResponse<UserDto>.SuccessResponse(
-                userDto,
-                "User retrieved successfully");
+            return ApiResponse<UserDto>.SuccessResponse(userDto, "User retrieved successfully");
         }
-
         public async Task<ApiResponse<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto dto)
         {
             if (userId == Guid.Empty)

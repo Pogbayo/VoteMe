@@ -20,7 +20,7 @@ public class ElectionController : BaseController
 
     [HttpPost]
     [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> CreateElection([FromBody] CreateElectionDto dto)
+    public async Task<IActionResult> CreateElection([FromForm] CreateElectionDto dto)
     {
         var result = await _electionService.CreateElectionAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
@@ -39,6 +39,14 @@ public class ElectionController : BaseController
     public async Task<IActionResult> GetOrganizationElections(Guid organizationId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _electionService.GetOrganizationElectionsAsync(organizationId, page, pageSize);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
+    [HttpPost("{electionId:guid}/open")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> OpenElection(Guid electionId)
+    {
+        var result = await _electionService.OpenElectionAsync(electionId);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 

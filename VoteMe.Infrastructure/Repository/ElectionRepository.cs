@@ -30,7 +30,7 @@ namespace VoteMe.Infrastructure.Repository
         public async Task<Election?> GetWithCategoriesAsync(Guid electionId)
         {
             return await _dbSet
-                .Include(e => e.Categories)
+                .Include(e => e.Categories!)
                     .ThenInclude(ec => ec.Candidates)
                 .Include(e => e.Organization)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
@@ -52,8 +52,8 @@ namespace VoteMe.Infrastructure.Repository
         {
             return await _dbSet
                 .AsNoTracking()
-                .Include(e => e.Categories)
-                    .ThenInclude(ec => ec.Candidates)
+                .Include(e => e.Categories!)
+                    .ThenInclude(ec => ec.Candidates!)
                         .ThenInclude(c => c.Votes)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }

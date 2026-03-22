@@ -10,6 +10,6 @@ namespace VoteMe.Application.DTOs.Election
         public DateTime EndDate { get; set; }
         public bool IsPrivate { get; set; } = false;
         public Guid OrganizationId { get; set; }
-        public List<CreateElectionCategoryDto> Categories { get; set; } = new();
+        //public ICollection<CreateElectionCategoryDto> Categories { get; set; } = new List<CreateElectionCategoryDto>();
     }
 }

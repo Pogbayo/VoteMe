@@ -23,7 +23,7 @@ public class AuthController : BaseController
 
     [HttpPost("register")]
     [AllowAnonymous]
-    public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
+    public async Task<IActionResult> Register([FromForm] RegisterUserDto dto)
     {
         var result = await _authService.RegisterUserAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);

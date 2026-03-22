@@ -29,7 +29,7 @@ public class CandidateController : BaseController
     [Authorize(Policy = "OrgAdmin")]
     public async Task<IActionResult> AddCandidate([FromBody] CreateCandidateDto dto)
     {
-        var result = await _candidateService.AddCandidateAsync(dto.ElectionCategoryId, dto);
+        var result = await _candidateService.AddCandidateAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 

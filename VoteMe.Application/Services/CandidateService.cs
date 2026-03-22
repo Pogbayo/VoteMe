@@ -35,12 +35,12 @@ public class CandidateService : ICandidateService
         _logger = logger;
     }
 
-    public async Task<ApiResponse<CandidateDto>> AddCandidateAsync(Guid electionCategoryId, CreateCandidateDto dto)
+    public async Task<ApiResponse<CandidateDto>> AddCandidateAsync(CreateCandidateDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.LastName))
             throw new BadRequestException("First name and last name are required");
 
-        var category = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
+        var category = await _unitOfWork.ElectionCategories.GetByIdAsync(dto.ElectionCategoryId);
         if (category == null || category.IsDeleted)
             throw new NotFoundException("Election category not found");
 
@@ -63,14 +63,14 @@ public class CandidateService : ICandidateService
             LastName = dto.LastName.Trim(),
             DisplayName = dto.DisplayName?.Trim(),
             Bio = dto.Bio?.Trim() ?? string.Empty,
-            PhotoUrl = dto.PhotoUrl.Trim(),
-            ElectionCategoryId = electionCategoryId,
+            PhotoUrl = dto.PhotoUrl!.Trim(),
+            ElectionCategoryId = dto.ElectionCategoryId,
         };
 
         await _unitOfWork.Candidates.AddAsync(candidate);
         await _unitOfWork.SaveChangesAsync();
 
-        await _cacheService.RemoveAsync($"election-category-candidates-{electionCategoryId}");
+        await _cacheService.RemoveAsync($"election-category-candidates-{dto.ElectionCategoryId}");
 
         _logger.LogInformation("Candidate '{FullName}' added to category '{CategoryName}' in election '{ElectionName}' by user {UserId}",
             candidate.FirstName + " " + candidate.LastName, category.Name, election.Name, _currentUserService.UserId);

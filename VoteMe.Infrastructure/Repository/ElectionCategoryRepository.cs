@@ -30,7 +30,7 @@ namespace VoteMe.Infrastructure.Repository
         public async Task<ElectionCategory?> GetElectionCategoryResultsAsync(Guid categoryId)
         {
             return await _context.ElectionCategories
-                .Include(c => c.Candidates)
+                .Include(c => c.Candidates!)
                     .ThenInclude(cand => cand.Votes)
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
         }

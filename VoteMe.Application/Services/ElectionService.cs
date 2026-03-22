@@ -56,20 +56,25 @@ namespace VoteMe.Application.Services
         }
         public async Task<ApiResponse<ElectionDto>> CreateElectionAsync( CreateElectionDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.Name))
-                throw new BadRequestException("Election name is required");
-            if (dto.StartDate == default)
-                throw new BadRequestException("Start date is required");
-            if (dto.EndDate == default)
-                throw new BadRequestException("End date is required");
-            if (dto.StartDate >= dto.EndDate)
-                throw new BadRequestException("Start date must be before end date");
-            if (dto.StartDate <= DateTimeOffset.UtcNow)
-                throw new BadRequestException("Start date must be in the future");
-
             var organization = await _unitOfWork.Organizations.GetByIdAsync(dto.OrganizationId);
             if (organization == null)
                 throw new NotFoundException("Organization not found");
+
+            //var ElectionCategories = dto.Categories?.Select(c => new ElectionCategory
+            //{
+            //    Name = c.Name.Trim(),
+            //    Description = string.IsNullOrWhiteSpace(c.Description)
+            //            ? string.Empty
+            //            : c.Description.Trim(),
+            //    Candidates = c.Candidates.Select(cand => new Candidate
+            //    {
+            //        FirstName = cand.FirstName.Trim(),
+            //        LastName = cand.LastName.Trim(),
+            //        DisplayName = string.IsNullOrWhiteSpace(cand.DisplayName)
+            //            ? $"{cand.FirstName.Trim()} {cand.LastName.Trim()}"
+            //            : cand.DisplayName.Trim()
+            //    }).ToList() ?? new List<Candidate>()
+            //}).ToList() ?? new List<ElectionCategory>();
 
             var election = new Election
             {
@@ -80,16 +85,14 @@ namespace VoteMe.Application.Services
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 OrganizationId = dto.OrganizationId,
-                Status = ElectionStatus.Pending
+                Status = ElectionStatus.Pending,
             };
 
             await _unitOfWork.Elections.AddAsync(election);
             await _unitOfWork.SaveChangesAsync();
 
-            _electionScheduler.ScheduleOpenElection(election.Id, election.StartDate);
-            _electionScheduler.ScheduleCloseElection(election.Id, election.EndDate);
-
-            await _cacheService.RemoveAsync($"organization-elections-{dto.OrganizationId}");
+            //_electionScheduler.ScheduleOpenElection(election.Id, election.StartDate);
+            //_electionScheduler.ScheduleCloseElection(election.Id, election.EndDate);
 
             _logger.LogInformation("Election '{Name}' created for organization '{OrgName}'",
                 election.Name, organization.Name);
@@ -174,7 +177,6 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<(IEnumerable<ElectionDto>, int)>.SuccessResponse((result, totalCount), "Elections retrieved successfully");
         }
-
         public async Task<ApiResponse<bool>> DeleteElectionAsync(Guid electionId)
         {
             var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
@@ -209,28 +211,60 @@ namespace VoteMe.Application.Services
             if (election.Status == ElectionStatus.Active)
                 throw new BadRequestException("Election is still active. Results are not available until the election is closed.");
 
-            var totalVotes = election.Categories
-                     .Sum(c => c.Candidates.Sum(cand => cand.Votes.Count));
+            var totalVotes = election.Categories?
+                     .Sum(c => c.Candidates?.Sum(cand => cand.Votes.Count));
 
-            var categoryResults = election.Categories.Select(c =>
+            var categoryResults = election.Categories?.Select(c =>
             {
-                var catTotalVotes = c.Candidates.
-                       Sum(cand => cand.Votes.Count);
+                var catTotalVotes = c.Candidates?.
+                       Sum(cand => cand.Votes.Count) ?? 0;
 
-                var candidateResults = c.Candidates
+                var candidateResults = c.Candidates?
                     .Select(cand => CandidateMapper.ToResultDto(cand, cand.Votes.Count, catTotalVotes))
                     .OrderByDescending(r => r.VoteCount)
                     .ToList();
 
-                return ElectionCategoryMapper.ToResultDto(c, candidateResults);
+                return ElectionCategoryMapper.ToResultDto(c, candidateResults!);
             }).ToList();
 
-            var result = ElectionMapper.ToResultDto(election, categoryResults);
+            var result = ElectionMapper.ToResultDto(election, categoryResults!);
 
             if (election.Status == ElectionStatus.Closed)
                 await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromHours(1));
 
             return ApiResponse<ElectionResultDto>.SuccessResponse(result, "Election results retrieved successfully");
+        }
+        public async Task<ApiResponse<ElectionDto>> OpenElectionAsync(Guid electionId)
+        {
+            var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
+            if (election == null) throw new NotFoundException("Election not found");
+
+            if (election.Status != ElectionStatus.Pending)
+                throw new BadRequestException("Election is not in pending status");
+
+            if (election.Categories == null || !election.Categories.Any())
+                throw new BadRequestException("Election must have at least one category");
+
+            election.Status = ElectionStatus.Active;
+            election.UpdateTimestamps();
+            _unitOfWork.Elections.Update(election);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            _electionScheduler.ScheduleCloseElection(election.Id, election.EndDate);
+
+            await _messageBus.PublishAsync("election-opened", new ElectionOpenedEvent
+            {
+                ElectionId = electionId,
+                ElectionName = election.Name,
+                OrganizationName = election.Organization.Name
+            });
+
+            await _cacheService.RemoveAsync($"election-{electionId}");
+
+            return ApiResponse<ElectionDto>.SuccessResponse(
+                ElectionMapper.ToDto(election),
+                "Election opened successfully");
         }
     }
 }

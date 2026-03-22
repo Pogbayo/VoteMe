@@ -20,13 +20,16 @@ namespace VoteMe.Application.Mappers.Organization
                 CreatedAt = organization.CreatedAt
             };
         }
-        public static CreatedOrganizationDto ToCreatedOrganizationDto(Domain.Entities.Organization organization)
+        public static CreatedOrganizationDto ToCreatedOrganizationDto(Domain.Entities.Organization organization, AppUser user)
         {
             return new CreatedOrganizationDto
             {
                 Id = organization.Id,
                 OrganizationName = organization.Name,
                 Description = organization.Description,
+                AdminFirstName = user.FirstName,
+                AdminDisplayName = user.DisplayName,
+                AdminLastName = user.LastName,
                 AdminEmail = organization.Email,
                 LogoUrl = organization.LogoUrl,
                 UniqueKey = organization.UniqueKey,

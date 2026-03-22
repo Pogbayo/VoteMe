@@ -6,25 +6,25 @@ namespace VoteMe.Application.DTOs.Auth
     {
         [Required]
         [StringLength(50)]
-        public string FirstName { get; set; } = string.Empty;
+        public required string FirstName { get; set; } 
 
         [Required]
         [StringLength(50)]
-        public string LastName { get; set; } = string.Empty;
+        public required string LastName { get; set; }
 
         [Required]
         [StringLength(50)]
-        public string DisplayName { get; set; } = string.Empty;
+        public required string DisplayName { get; set; } 
 
         [Required]
         [EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        public required string Email { get; set; } 
 
         [Required]
         [MinLength(6)]
-        public string Password { get; set; } = string.Empty;
+        public required string Password { get; set; }
 
         [Required]
-        public string UniqueKey { get; set; } = string.Empty;
+        public required string UniqueKey { get; set; }
     }
 }
