@@ -28,7 +28,7 @@ public class OrganizationsController : BaseController
 
     [HttpPatch("{organizationId:guid}")]
     [Authorize(Policy = "OrgAdminOrSuperAdmin")]
-    public async Task<IActionResult> UpdateOrganization(Guid organizationId, [FromBody] UpdateOrganizationDto dto)
+    public async Task<IActionResult> UpdateOrganization([FromRoute]Guid organizationId, [FromForm] UpdateOrganizationDto dto)
     {
         var result = await _organizationService.UpdateOrganizationAsync(organizationId, dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);

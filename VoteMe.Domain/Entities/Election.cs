@@ -6,7 +6,7 @@ namespace VoteMe.Domain.Entities
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public DateTime StartDate { get; set; }
+        public DateTime? StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public ElectionStatus Status { get; set; } = ElectionStatus.Pending;
         public bool IsPrivate { get; set; } = false;

@@ -40,10 +40,44 @@ namespace VoteMe.Application.Services
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            if (!_currentUserService.Roles.Contains(Roles.SuperAdmin) &&
-                    _currentUserService.UserId != userId)
+            if (!_currentUserService.Roles.Contains(Roles.SuperAdmin))
+                throw new ForbiddenException("Only SuperAdmins can delete users");
+
+            var memberships = await _unitOfWork.OrganizationMembers
+                .GetUserMembershipsWithOrgsAsync(userId);
+
+            foreach (var membership in memberships)
             {
-                throw new ForbiddenException("You are not authorized to delete this user");
+                if (membership.IsAdmin)
+                {
+                    var orgMembers = await _unitOfWork.OrganizationMembers
+                        .FindAsync(m => m.OrganizationId == membership.OrganizationId);
+
+                    var otherAdmins = orgMembers.Count(m => m.IsAdmin && m.UserId != userId);
+                    var otherMembers = orgMembers.Count(m => m.UserId != userId);
+
+                    if (otherAdmins == 0 && otherMembers > 0)
+                    {
+                        throw new BadRequestException(
+                            $"User is the only admin/user (left) in '{membership.Organization.Name}'. " +
+                            "Assign another admin before deleting this user.");
+                    }
+
+                    if (otherMembers == 0)
+                    {
+                        membership.Organization.IsDeleted = true;
+                        membership.Organization.IsActive = false;
+                        membership.Organization.DeletedAt = DateTime.UtcNow;
+                        _unitOfWork.Organizations.Update(membership.Organization);
+
+                        _logger.LogInformation(
+                            "Organization '{OrgName}' deleted — last member {UserId} was deleted by SuperAdmin",
+                            membership.Organization.Name, userId);
+                    }
+                }
+
+                membership.MarkAsDeleted();
+                _unitOfWork.OrganizationMembers.Update(membership);
             }
 
             user.MarkAsDeleted();
@@ -53,16 +87,7 @@ namespace VoteMe.Application.Services
             if (!updateResult.Succeeded)
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
-                throw new Domain.Exceptions.InvalidOperationException($"Failed to soft-delete user: {errors}");
-            }
-
-            var memberships = await _unitOfWork.OrganizationMembers
-                    .FindAsync(m => m.UserId == userId);
-
-            foreach (var m in memberships)
-            {
-                m.MarkAsDeleted();
-                _unitOfWork.OrganizationMembers.Update(m);
+                throw new Domain.Exceptions.InvalidOperationException($"Failed to delete user: {errors}");
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -76,7 +101,7 @@ namespace VoteMe.Application.Services
                 DeletedByUserId = _currentUserService.UserId
             });
 
-            return ApiResponse<bool>.SuccessResponse(true, "User soft-deleted successfully");
+            return ApiResponse<bool>.SuccessResponse(true, "User deleted successfully");
         }
 
         public async Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(
@@ -128,7 +153,7 @@ namespace VoteMe.Application.Services
             }
 
             var totalCount = await _unitOfWork.OrganizationMembers
-                .CountAsync(m => m.OrganizationId == organizationId && !m.IsDeleted);
+                .CountAsync(m => m.OrganizationId == organizationId);
 
             var cacheResult = new 
             {

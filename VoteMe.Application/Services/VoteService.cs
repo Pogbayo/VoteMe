@@ -38,59 +38,68 @@ namespace VoteMe.Application.Services
             if (user == null || user.IsDeleted)
                 throw new UnauthorizedException("Your account is not found or has been deleted");
 
-            var election = await _unitOfWork.Elections.GetByIdAsync(dto.ElectionId);
+            var candidate = await _unitOfWork.Candidates.GetByIdAsync(dto.CandidateId);
+            if (candidate == null || candidate.IsDeleted)
+                throw new NotFoundException("Candidate not found");
+
+            var category = await _unitOfWork.ElectionCategories.GetByIdAsync(candidate.ElectionCategoryId);
+            if (category == null || category.IsDeleted)
+                throw new NotFoundException("Election category not found");
+
+            var election = await _unitOfWork.Elections.GetByIdAsync(category.ElectionId);
             if (election == null || election.IsDeleted)
                 throw new NotFoundException("Election not found");
 
             if (election.Status != ElectionStatus.Active)
                 throw new BadRequestException("Voting is not currently open for this election");
 
-            var category = await _unitOfWork.ElectionCategories.GetByIdAsync(dto.ElectionCategoryId);
-            if (category == null || category.IsDeleted || category.ElectionId != dto.ElectionId)
-                throw new NotFoundException("Election category not found or does not belong to this election");
+            var membership = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, election.OrganizationId);
 
-            var candidate = await _unitOfWork.Candidates.GetByIdAsync(dto.CandidateId);
-            if (candidate == null || candidate.IsDeleted || candidate.ElectionCategoryId != dto.ElectionCategoryId)
-                throw new NotFoundException("Candidate not found or does not belong to this category");
+            if (membership == null)
+                throw new ForbiddenException("You are not a member of this organization");
 
-            var existingVote = await _unitOfWork.Votes.HasUserVotedAsync(userId, dto.ElectionCategoryId, dto.ElectionId);
+            if (membership.Status == MembershipStatus.Pending)
+                throw new ForbiddenException("Your membership is pending admin approval");
 
-            if (existingVote)
+            if (membership.Status == MembershipStatus.Rejected)
+                throw new ForbiddenException("Your membership request was rejected");
+
+            if (membership.Status == MembershipStatus.Banned)
+                throw new ForbiddenException("You have been banned from this organization");
+
+            var existingVote = await _unitOfWork.Votes.FindOneAsync(
+                v => v.VoterId == userId && v.ElectionCategoryId == category.Id);
+
+            if (existingVote != null)
             {
-                var oldVote = await _unitOfWork.Votes.FindOneAsync(
-                    v => v.VoterId == userId 
-                         &&
-                         v.ElectionCategoryId == dto.ElectionCategoryId);
+                var oldCandidateId = existingVote.CandidateId;
+                existingVote.CandidateId = dto.CandidateId;
+                existingVote.UpdateTimestamps();
+                _unitOfWork.Votes.Update(existingVote);
+                await _unitOfWork.SaveChangesAsync();
 
-                if (oldVote != null)
+                await _messageBus.PublishAsync("vote-changed", new VoteChangedEvent
                 {
-                    oldVote.CandidateId = dto.CandidateId;
-                    oldVote.UpdateTimestamps();
-                    _unitOfWork.Votes.Update(oldVote);
+                    VoterId = userId,
+                    ElectionId = election.Id,
+                    ElectionName = election.Name,
+                    ElectionCategoryId = category.Id,
+                    OldCandidateId = oldCandidateId,
+                    NewCandidateId = dto.CandidateId,
+                    VoterDisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}",
+                    VoterEmail = user.Email ?? string.Empty
+                });
 
-                    await _messageBus.PublishAsync("vote-changed", new VoteChangedEvent
-                    {
-                        VoterId = userId,
-                        ElectionId = dto.ElectionId,
-                        ElectionName = election.Name,
-                        ElectionCategoryId = dto.ElectionCategoryId,
-                        OldCandidateId = oldVote.CandidateId,
-                        NewCandidateId = dto.CandidateId,
-                        VoterDisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}",
-                        VoterEmail = user.Email ?? string.Empty
-                    });
-
-                    await _unitOfWork.SaveChangesAsync();
-                    return ApiResponse<bool>.SuccessResponse(true);
-                }
+                return ApiResponse<bool>.SuccessResponse(true, "Vote changed successfully");
             }
 
             var vote = new Vote
             {
                 VoterId = userId,
                 CandidateId = dto.CandidateId,
-                ElectionCategoryId = dto.ElectionCategoryId,
-                ElectionId = dto.ElectionId,
+                ElectionCategoryId = category.Id,
+                ElectionId = election.Id,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -104,9 +113,9 @@ namespace VoteMe.Application.Services
                 VoterLastName = user.LastName,
                 VoterDisplayName = user.DisplayName ?? string.Empty,
                 VoterEmail = user.Email ?? string.Empty,
-                ElectionId = dto.ElectionId,
+                ElectionId = election.Id,
                 ElectionName = election.Name,
-                ElectionCategoryId = dto.ElectionCategoryId,
+                ElectionCategoryId = category.Id,
                 ElectionCategoryName = category.Name,
                 CandidateId = dto.CandidateId,
                 CandidateFirstName = candidate.FirstName,
@@ -114,7 +123,7 @@ namespace VoteMe.Application.Services
                 IsPrivate = election.IsPrivate
             });
 
-            return ApiResponse<bool>.SuccessResponse(true);
+            return ApiResponse<bool>.SuccessResponse(true, "Vote cast successfully");
         }
     }
 }

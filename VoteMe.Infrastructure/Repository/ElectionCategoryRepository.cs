@@ -12,18 +12,19 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
-        public async Task<ElectionCategory?> GetElectionCategoryAsync(Guid categoryId)
+        public async Task<ElectionCategory?> GetElectionCategoryAsync(Guid electionCategoryId)
         {
             return await _context.ElectionCategories
-                .FirstOrDefaultAsync(c => c.Id == categoryId);
+                .Include(ec => ec.Candidates)
+                .FirstOrDefaultAsync(ec => ec.Id == electionCategoryId);
         }
-    
 
         public async Task<IEnumerable<ElectionCategory>> GetElectionCategoriesAsync(Guid electionId)
         {
             return await _context.ElectionCategories
+                .Include(ec => ec.Candidates)
                 .Where(c => c.ElectionId == electionId)
-                .OrderBy(c => c.Name)
+                .OrderBy(c => c.CreatedAt)
                 .ToListAsync();
         }
 

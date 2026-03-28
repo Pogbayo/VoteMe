@@ -122,7 +122,8 @@ namespace VoteMe.Application.Services
                 UserId = userId,
                 OrganizationId = organization.Id,
                 IsAdmin = false,
-                JoinedAt = DateTime.UtcNow
+                JoinedAt = DateTime.UtcNow,
+                Status = MembershipStatus.Pending
             };
 
             await _unitOfWork.OrganizationMembers.AddAsync(member);
@@ -139,7 +140,7 @@ namespace VoteMe.Application.Services
                 OrganizationName = organization.Name
             });
 
-            return ApiResponse<bool>.SuccessResponse(true, "Successfully joined organization");
+            return ApiResponse<bool>.SuccessResponse(true, "Join request submitted. Awaiting admin approval");
         }
 
         public async Task<ApiResponse<bool>> LeaveOrganizationAsync(Guid organizationId)
@@ -148,7 +149,6 @@ namespace VoteMe.Application.Services
 
             var organization = await _unitOfWork.Organizations
                 .FindOneAsync(o => o.Id == organizationId);
-
             if (organization == null)
                 throw new NotFoundException("Organization not found");
 
@@ -157,10 +157,26 @@ namespace VoteMe.Application.Services
             if (member == null)
                 throw new NotFoundException("You are not a member of this organization");
 
-            if (member.IsAdmin)
+            var remainingMemberCount = await _unitOfWork.OrganizationMembers
+                .CountAsync(m => m.OrganizationId == organizationId);
+
+            if (member.IsAdmin && remainingMemberCount > 1)
                 throw new BadRequestException("Admins cannot leave the organization — transfer admin rights first");
 
             await _unitOfWork.OrganizationMembers.SoftDeleteByIdAsync(member.Id);
+
+            if (remainingMemberCount <= 1)
+            {
+                organization.IsActive = false;
+                organization.IsDeleted = true;
+                organization.DeletedAt = DateTime.UtcNow;
+                _unitOfWork.Organizations.Update(organization);
+
+                _logger.LogInformation(
+                    "Organization {OrganizationId} deleted — last member {UserId} left",
+                    organizationId, userId);
+            }
+
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("User {UserId} left organization {OrganizationId}",
@@ -171,12 +187,11 @@ namespace VoteMe.Application.Services
                 UserId = userId,
                 Email = _currentUserService.Email,
                 DisplayName = _currentUserService.DisplayName,
-                OrganizationName = organization?.Name ?? string.Empty
+                OrganizationName = organization.Name
             });
 
             return ApiResponse<bool>.SuccessResponse(true, "Successfully left organization");
         }
-
         public async Task<ApiResponse<bool>> PromoteToAdminAsync(Guid organizationId, Guid userId)
         {
             var requesterId = _currentUserService.UserId;
@@ -214,7 +229,10 @@ namespace VoteMe.Application.Services
 
             var requester = await _unitOfWork.OrganizationMembers
                 .GetMemberAsync(requesterId, organizationId);
-            if (requester == null || !requester.IsAdmin)
+            if (requester == null)
+                throw new ForbiddenException("You need to be a memeber of this organization to remove a member");
+
+            if (!requester.IsAdmin)
                 throw new ForbiddenException("Only admins can remove members");
 
             var member = await _unitOfWork.OrganizationMembers
@@ -225,7 +243,8 @@ namespace VoteMe.Application.Services
             if (member.IsAdmin)
                 throw new BadRequestException("Cannot remove an admin — demote them first");
 
-            await _unitOfWork.OrganizationMembers.SoftDeleteByIdAsync(member.Id);
+            //await _unitOfWork.OrganizationMembers.SoftDeleteByIdAsync(member.Id);
+            member.Status = MembershipStatus.Removed;
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("User {UserId} removed from organization {OrganizationId} by {RequesterId}",
@@ -240,6 +259,99 @@ namespace VoteMe.Application.Services
             });
 
             return ApiResponse<bool>.SuccessResponse(true, "Member removed successfully");
+        }
+
+        public async Task<ApiResponse<bool>> ApproveMemberAsync(Guid organizationId, Guid userId)
+        {
+            var requesterId = _currentUserService.UserId;
+            var requester = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(requesterId, organizationId);
+
+            if (requester == null || !requester.IsAdmin)
+                throw new ForbiddenException("Only admins can approve members");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, organizationId);
+            if (member == null)
+                throw new NotFoundException("Member not found");
+
+            if (member.Status == MembershipStatus.Approved)
+                throw new BadRequestException("Member is already approved");
+
+            member.Status = MembershipStatus.Approved;
+            member.UpdateTimestamps();
+
+            _unitOfWork.OrganizationMembers.Update(member);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _cacheService.RemoveAsync($"OrganizationMembers_{organizationId}");
+
+            _logger.LogInformation("User {UserId} approved in organization {OrganizationId}",
+                userId, organizationId);
+
+            return ApiResponse<bool>.SuccessResponse(true, "Member approved successfully");
+        }
+
+        public async Task<ApiResponse<IEnumerable<PendingMemberDto>>> GetPendingMembersAsync(Guid organizationId)
+        {
+            var requesterId = _currentUserService.UserId;
+
+            _logger.LogInformation("RequesterId from token: {RequesterId}", requesterId);
+            _logger.LogInformation("OrganizationId: {OrganizationId}", organizationId);
+
+            var requester = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(requesterId, organizationId);
+
+            _logger.LogInformation("Requester found: {Found}, IsAdmin: {IsAdmin}",
+                requester != null, requester?.IsAdmin);
+
+            if (requester == null || !requester.IsAdmin)
+                throw new ForbiddenException("Only admins can view pending members");
+
+            var pendingMembers = await _unitOfWork.OrganizationMembers
+                .GetMembersByStatusAsync(organizationId, MembershipStatus.Pending);
+
+            var dtos = pendingMembers.Select(m => new PendingMemberDto
+            {
+                UserId = m.UserId,
+                FirstName = m.User.FirstName,
+                LastName = m.User.LastName,
+                DisplayName = m.User.DisplayName ?? $"{m.User.FirstName} {m.User.LastName}",
+                Email = m.User.Email ?? string.Empty,
+                JoinedAt = m.JoinedAt,
+                Status = m.Status
+            });
+
+            return ApiResponse<IEnumerable<PendingMemberDto>>.SuccessResponse(
+                dtos, "Pending members retrieved successfully");
+        }
+
+        public async Task<ApiResponse<bool>> RejectMemberAsync(Guid organizationId, Guid userId)
+        {
+            var requesterId = _currentUserService.UserId;
+            var requester = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(requesterId, organizationId);
+
+            if (requester == null || !requester.IsAdmin)
+                throw new ForbiddenException("Only admins can reject members");
+
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(userId, organizationId);
+            if (member == null)
+                throw new NotFoundException("Member not found");
+
+            if (member.Status == MembershipStatus.Rejected)
+                throw new BadRequestException("Member is already rejected");
+
+            member.Status = MembershipStatus.Rejected;
+            member.UpdateTimestamps();
+
+            _unitOfWork.OrganizationMembers.Update(member);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _cacheService.RemoveAsync($"OrganizationMembers_{organizationId}");
+
+            return ApiResponse<bool>.SuccessResponse(true, "Member rejected successfully");
         }
     }
 }

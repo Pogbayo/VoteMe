@@ -17,9 +17,37 @@ public class OrganizationMemberController : BaseController
         _organizationMemberService = organizationMemberService;
     }
 
+    [HttpGet("{organizationId:guid}/pending")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> GetPendingMembers([FromRoute] Guid organizationId)
+    {
+        var result = await _organizationMemberService.GetPendingMembersAsync(organizationId);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
+    [HttpPost("{organizationId:guid}/{userId:guid}/approve")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> ApproveMember(
+        [FromRoute] Guid organizationId,
+        [FromRoute] Guid userId)
+    {
+        var result = await _organizationMemberService.ApproveMemberAsync(organizationId, userId);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
+    [HttpPost("{organizationId:guid}/{userId:guid}/reject")]
+    [Authorize(Policy = "OrgAdmin")]
+    public async Task<IActionResult> RejectMember(
+        [FromRoute] Guid organizationId,
+        [FromRoute] Guid userId)
+    {
+        var result = await _organizationMemberService.RejectMemberAsync(organizationId, userId);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
     [HttpPost("join")]
     [Authorize(Policy = "Authenticated")]
-    public async Task<IActionResult> JoinOrganization([FromBody] string uniqueKey)
+    public async Task<IActionResult> JoinOrganization([FromRoute] string uniqueKey)
     {
         var result = await _organizationMemberService.JoinOrganizationAsync(uniqueKey);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);

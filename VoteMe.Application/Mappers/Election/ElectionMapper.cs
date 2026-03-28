@@ -39,5 +39,6 @@ namespace VoteMe.Application.Mappers.Election
         {
             return elections.Select(ToDto);
         }
+
     }
 }

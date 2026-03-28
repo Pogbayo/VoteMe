@@ -163,7 +163,8 @@ namespace VoteMe.Application.Services
                     UserId = adminUser.Id,
                     OrganizationId = organization.Id,
                     IsAdmin = true,
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    Status = MembershipStatus.Approved
                 };
 
                 await _unitOfWork.OrganizationMembers.AddAsync(membership);
@@ -247,7 +248,8 @@ namespace VoteMe.Application.Services
                     UserId = user.Id,
                     OrganizationId = organization.Id,
                     IsAdmin = false,
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    Status = MembershipStatus.Pending
                 };
 
                 await _unitOfWork.OrganizationMembers.AddAsync(member);

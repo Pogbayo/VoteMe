@@ -27,7 +27,7 @@ public class CandidateController : BaseController
 
     [HttpPost]
     [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> AddCandidate([FromBody] CreateCandidateDto dto)
+    public async Task<IActionResult> AddCandidate([FromForm] CreateCandidateDto dto)
     {
         var result = await _candidateService.AddCandidateAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
@@ -35,7 +35,7 @@ public class CandidateController : BaseController
 
     [HttpPatch("{candidateId:guid}")]
     [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> UpdateCandidate(Guid candidateId, [FromBody] UpdateCandidateDto dto)
+    public async Task<IActionResult> UpdateCandidate([FromRoute]Guid candidateId, [FromForm] UpdateCandidateDto dto)
     {
         var result = await _candidateService.UpdateCandidateAsync(candidateId, dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
@@ -50,7 +50,7 @@ public class CandidateController : BaseController
     }
 
     [HttpGet("category/{electionCategoryId:guid}")]
-    [Authorize(Policy = "Authenicated")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetCategoryCandidates(Guid electionCategoryId)
     {
         var result = await _candidateService.GetCategoryCandidatesAsync(electionCategoryId);

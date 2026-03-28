@@ -7,6 +7,7 @@ using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Election;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.Services;
 
 namespace VoteMe.Infrastructure.Consumers.Election
@@ -54,7 +55,9 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 );
 
                 await cacheService.RemoveAsync($"organization-elections-{eventData.OrganizationId}");
-
+                await cacheService.RemoveAsync($"election-{eventData.ElectionId}");
+                //await _cacheService.RemoveAsync($"organization-elections-{election.OrganizationId}");
+                await cacheService.RemoveAsync($"election-results-{eventData.ElectionId}");
                 await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);

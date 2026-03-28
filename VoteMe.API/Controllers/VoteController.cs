@@ -18,9 +18,9 @@ public class VotesController : BaseController
         _voteService = voteService;
     }
 
-    [HttpPost]
+    [HttpPost("{candidateId:guid}")]
     [Authorize(Policy = "Voter")]
-    public async Task<IActionResult> CastVote([FromBody] CastVoteDto dto)
+    public async Task<IActionResult> CastVote([FromRoute] CastVoteDto dto)
     {
         var result = await _voteService.CastVoteAsync(dto);
         return result.Success ? OkResponse(true, "Vote cast successfully") : ErrorResponse("Vote failed");

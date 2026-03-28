@@ -36,7 +36,7 @@ public class ElectionCategoryController : BaseController
 
     [HttpPatch("{electionCategoryId:guid}")]
     [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> UpdateElectionCategory(Guid electionCategoryId, [FromBody] UpdateElectionCategoryDto dto)
+    public async Task<IActionResult> UpdateElectionCategory([FromRoute] Guid electionCategoryId, [FromBody] UpdateElectionCategoryDto dto)
     {
         var result = await _electionCategoryService.UpdateElectionCategoryAsync(electionCategoryId, dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);

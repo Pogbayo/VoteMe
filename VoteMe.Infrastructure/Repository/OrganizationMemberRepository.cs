@@ -1,8 +1,9 @@
-﻿using VoteMe.Domain.Entities;
-using VoteMe.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
-using VoteMe.Infrastructure.Repositories;
+﻿using Microsoft.EntityFrameworkCore;
 using VoteMe.Application.Interface.IRepositories;
+using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
+using VoteMe.Infrastructure.Data;
+using VoteMe.Infrastructure.Repositories;
 namespace VoteMe.Infrastructure.Repository
 {
     public class OrganizationMemberRepository : GenericRepository<OrganizationMember>, IOrganizationMemberRepository
@@ -11,6 +12,13 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
+        public async Task<IEnumerable<OrganizationMember>> GetUserMembershipsWithOrgsAsync(Guid userId)
+        {
+            return await _dbSet
+                .Include(m => m.Organization)
+                .Where(m => m.UserId == userId)
+                .ToListAsync();
+        }
         public async Task<OrganizationMember?> GetMemberAsync(Guid userId, Guid organizationId)
         {
             return await _dbSet
@@ -29,6 +37,15 @@ namespace VoteMe.Infrastructure.Repository
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<OrganizationMember>> GetMembersByStatusAsync(
+            Guid organizationId, MembershipStatus status)
+        {
+            return await _dbSet
+                .Include(m => m.User)
+                .Where(m => m.OrganizationId == organizationId
+                         && m.Status == status)
+                .ToListAsync();
+        }
         public async Task<IEnumerable<OrganizationMember>> GetUserOrganizationsAsync(Guid userId)
         {
             return await _dbSet
