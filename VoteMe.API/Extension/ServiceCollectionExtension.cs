@@ -29,7 +29,7 @@ namespace VoteMe.API.Extension
 
             app.UseAuthentication();
             app.UseAuthorization();
-
+            app.UseRateLimiter();
             app.MapControllers();
             app.MapHub<ElectionHub>("/hubs/election");
 

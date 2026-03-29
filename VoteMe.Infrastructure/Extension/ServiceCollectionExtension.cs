@@ -1,11 +1,13 @@
-﻿using System.Security.Authentication;
-using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Amazon.SimpleEmail;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +19,6 @@ using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.AWS;
-using VoteMe.Infrastructure.Consumers;
 using VoteMe.Infrastructure.Consumers.Auth;
 using VoteMe.Infrastructure.Consumers.Candidate;
 using VoteMe.Infrastructure.Consumers.Election;
@@ -30,7 +31,6 @@ using VoteMe.Infrastructure.Repositories;
 using VoteMe.Infrastructure.Repository;
 using VoteMe.Infrastructure.Services;
 using VoteMe.Infrastructure.Settings;
-using System.Net.Security;
 
 namespace VoteMe.Infrastructure.Extension
 {
@@ -151,6 +151,44 @@ namespace VoteMe.Infrastructure.Extension
                         }
                     }
                 };
+            });
+
+            //Rate-limiting
+            services.AddRateLimiter(options =>
+            {
+                // Global default - applies to all endpoints
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                    return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,           // 100 requests
+                        Window = TimeSpan.FromMinutes(1), // per minute
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    });
+                });
+
+                // Strict - for auth endpoints (login, register)
+                options.AddFixedWindowLimiter("auth", opt =>
+                {
+                    opt.PermitLimit = 5;                      // 5 attempts
+                    opt.Window = TimeSpan.FromMinutes(15);     // per 15 minutes
+                    opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    opt.QueueLimit = 0;
+                });
+
+                // Voting - per user
+                options.AddFixedWindowLimiter("voting", opt =>
+                {
+                    opt.PermitLimit = 30;                     // 30 votes
+                    opt.Window = TimeSpan.FromMinutes(1);     // per minute
+                    opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    opt.QueueLimit = 0;
+                });
+
+                // Return 429 instead of 503
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             });
 
             //Swagger configuration

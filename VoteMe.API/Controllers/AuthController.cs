@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using VoteMe.Application.DTOs.Auth;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.Interface.IServices;
@@ -22,6 +23,7 @@ public class AuthController : BaseController
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromForm] RegisterUserDto dto)
     {
@@ -30,6 +32,7 @@ public class AuthController : BaseController
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {

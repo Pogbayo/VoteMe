@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using VoteMe.Application.DTOs.Vote;
 using VoteMe.Application.Interface.IServices;
 
@@ -19,6 +20,7 @@ public class VotesController : BaseController
     }
 
     [HttpPost("{candidateId:guid}")]
+    [EnableRateLimiting("voting")]
     [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> CastVote([FromRoute] Guid candidateId)
     {
