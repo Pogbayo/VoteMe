@@ -28,27 +28,30 @@ namespace VoteMe.Application.Services
             _messageBus = messageBus;
             _userManager = userManager;
         }
-        public async Task<ApiResponse<bool>> CastVoteAsync(CastVoteDto dto)
+        public async Task<ApiResponse<bool>> CastVoteAsync(Guid candidateId)
         {
-            if (dto == null)
+            if (candidateId == Guid.Empty)
                 throw new BadRequestException("Vote data is required");
 
             var userId = _currentUserService.UserId;
             var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null || user.IsDeleted)
+            if (user == null)
                 throw new UnauthorizedException("Your account is not found or has been deleted");
 
-            var candidate = await _unitOfWork.Candidates.GetByIdAsync(dto.CandidateId);
-            if (candidate == null || candidate.IsDeleted)
+            var candidate = await _unitOfWork.Candidates.GetByIdAsync(candidateId);
+            if (candidate == null)
                 throw new NotFoundException("Candidate not found");
 
             var category = await _unitOfWork.ElectionCategories.GetByIdAsync(candidate.ElectionCategoryId);
-            if (category == null || category.IsDeleted)
+            if (category == null)
                 throw new NotFoundException("Election category not found");
 
             var election = await _unitOfWork.Elections.GetByIdAsync(category.ElectionId);
-            if (election == null || election.IsDeleted)
+            if (election == null)
                 throw new NotFoundException("Election not found");
+
+            if (election.EndDate <= DateTime.UtcNow)
+                throw new BadRequestException("Election has already closed");
 
             if (election.Status != ElectionStatus.Active)
                 throw new BadRequestException("Voting is not currently open for this election");
@@ -73,10 +76,15 @@ namespace VoteMe.Application.Services
 
             if (existingVote != null)
             {
+                if (existingVote.CandidateId == candidateId)
+                    throw new BadRequestException("You have already voted for this candidate");
+
                 var oldCandidateId = existingVote.CandidateId;
-                existingVote.CandidateId = dto.CandidateId;
+                existingVote.CandidateId = candidateId;
+
                 existingVote.UpdateTimestamps();
                 _unitOfWork.Votes.Update(existingVote);
+
                 await _unitOfWork.SaveChangesAsync();
 
                 await _messageBus.PublishAsync("vote-changed", new VoteChangedEvent
@@ -86,7 +94,7 @@ namespace VoteMe.Application.Services
                     ElectionName = election.Name,
                     ElectionCategoryId = category.Id,
                     OldCandidateId = oldCandidateId,
-                    NewCandidateId = dto.CandidateId,
+                    NewCandidateId = candidateId,
                     VoterDisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}",
                     VoterEmail = user.Email ?? string.Empty
                 });
@@ -97,7 +105,7 @@ namespace VoteMe.Application.Services
             var vote = new Vote
             {
                 VoterId = userId,
-                CandidateId = dto.CandidateId,
+                CandidateId = candidateId,
                 ElectionCategoryId = category.Id,
                 ElectionId = election.Id,
                 CreatedAt = DateTime.UtcNow
@@ -117,7 +125,7 @@ namespace VoteMe.Application.Services
                 ElectionName = election.Name,
                 ElectionCategoryId = category.Id,
                 ElectionCategoryName = category.Name,
-                CandidateId = dto.CandidateId,
+                CandidateId = candidateId,
                 CandidateFirstName = candidate.FirstName,
                 CandidateLastName = candidate.LastName,
                 IsPrivate = election.IsPrivate

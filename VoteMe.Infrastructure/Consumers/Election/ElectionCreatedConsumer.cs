@@ -40,13 +40,13 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
-                
-                //await notificationService.SendElectionCreatedEmailAsync(
-                //     eventData.MemberEmails,
-                //     eventData.ElectionName,
-                //     eventData.OrganizationName,
-                //     eventData.ElectionCategoryNames
-                // );
+
+                await notificationService.SendElectionCreatedEmailAsync(
+                     eventData.MemberEmails,
+                     eventData.ElectionName,
+                     eventData.OrganizationName,
+                     eventData.ElectionCategoryNames
+                 );
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.CreatedByUserId,

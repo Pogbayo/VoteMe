@@ -6,7 +6,6 @@ namespace VoteMe.Application.DTOs.Election
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public DateTime EndDate { get; set; }
         public bool IsPrivate { get; set; } = false;
         public Guid OrganizationId { get; set; }
     }

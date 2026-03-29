@@ -20,7 +20,26 @@ namespace VoteMe.Application.Mappers.ElectionCategory
 
         public static ElectionCategoryResultDto ToResultDto(Domain.Entities.ElectionCategory category, List<CandidateResultDto> results)
         {
-            var winner = results.OrderByDescending(r => r.VoteCount).FirstOrDefault();
+            if (!results.Any())
+            {
+                return new ElectionCategoryResultDto
+                {
+                    ElectionCategoryId = category.Id,
+                    ElectionCategoryName = category.Name,
+                    TotalVotes = 0,
+                    Winner = null,
+                    Results = results
+                };
+            }
+
+            var highestVotes = results.Max(r => r.VoteCount);
+            var topCandidates = results
+                .Where(r => r.VoteCount == highestVotes)
+                .ToList();
+
+            var isTie = topCandidates.Count > 1;
+            var winner = topCandidates.First(); // only used when isTie = false
+
             return new ElectionCategoryResultDto
             {
                 ElectionCategoryId = category.Id,
@@ -33,7 +52,17 @@ namespace VoteMe.Application.Mappers.ElectionCategory
                     LastName = winner.LastName,
                     DisplayName = winner.DisplayName,
                     VoteCount = winner.VoteCount,
-                    Percentage = winner.Percentage
+                    Percentage = winner.Percentage,
+                    IsTie = isTie,
+                    TiedCandidates = isTie ? topCandidates.Select(c => new TiedCandidateDto
+                    {
+                        CandidateId = c.CandidateId,
+                        FirstName = c.FirstName,
+                        LastName = c.LastName,
+                        DisplayName = c.DisplayName,
+                        VoteCount = c.VoteCount,
+                        Percentage = c.Percentage
+                    }).ToList() : null
                 },
                 Results = results
             };

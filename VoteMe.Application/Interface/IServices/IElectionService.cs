@@ -10,7 +10,8 @@ namespace VoteMe.Application.Interface.IServices
         Task<ApiResponse<PagedElectionResponse>> GetOrganizationElectionsAsync(Guid organizationId, int page = 1, int pageSize = 20);
         Task<ApiResponse<ElectionDto>> UpdateElectionAsync(Guid electionId, UpdateElectionDto dto);
         Task<ApiResponse<bool>> DeleteElectionAsync(Guid electionId);
-        Task<ApiResponse<ElectionDto>> OpenElectionAsync(Guid electionId);
+        Task<ApiResponse<bool>> OpenElectionAsync(Guid electionId, OpenElectionDto openElectionDto);
         Task<ApiResponse<ElectionResultDto>> GetElectionResultsAsync(Guid electionId);
+        //Task CloseElectionAsync(Guid electionId);
     }
 }

@@ -44,9 +44,9 @@ public class ElectionController : BaseController
 
     [HttpPost("{electionId:guid}/open")]
     [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> OpenElection(Guid electionId)
+    public async Task<IActionResult> OpenElection(Guid electionId, [FromBody] OpenElectionDto dto)
     {
-        var result = await _electionService.OpenElectionAsync(electionId);
+        var result = await _electionService.OpenElectionAsync(electionId, dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 

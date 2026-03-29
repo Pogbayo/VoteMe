@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using VoteMe.Application.Common;
+using VoteMe.Application.DTOs.Candidate;
 using VoteMe.Application.DTOs.Election;
+using VoteMe.Application.DTOs.ElectionCategory;
 using VoteMe.Application.Events.Election;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
@@ -66,7 +68,6 @@ namespace VoteMe.Application.Services
                 Description = string.IsNullOrWhiteSpace(dto.Description)
                     ? string.Empty
                     : dto.Description.Trim(),
-                EndDate = dto.EndDate,
                 OrganizationId = dto.OrganizationId,
                 Status = ElectionStatus.Pending,
             };
@@ -225,7 +226,7 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<ElectionResultDto>.SuccessResponse(result, "Election results retrieved successfully");
         }
-        public async Task<ApiResponse<ElectionDto>> OpenElectionAsync(Guid electionId)
+        public async Task<ApiResponse<bool>> OpenElectionAsync(Guid electionId, OpenElectionDto openElectionDto)
         {
             var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
             if (election == null) throw new NotFoundException("Election not found");
@@ -238,12 +239,17 @@ namespace VoteMe.Application.Services
 
             election.Status = ElectionStatus.Active;
             election.StartDate = DateTime.UtcNow;
+            election.EndDate = openElectionDto.EndDate;
             election.UpdateTimestamps();
+
             _unitOfWork.Elections.Update(election);
 
             await _unitOfWork.SaveChangesAsync();
 
-            _electionScheduler.ScheduleCloseElection(election.Id, election.EndDate);
+            if (election.EndDate == null)
+                throw new BadRequestException("End date is required to open an election");
+
+            _electionScheduler.ScheduleCloseElection(election.Id, election.EndDate.Value);
 
             await _messageBus.PublishAsync("election-opened", new ElectionOpenedEvent
             {
@@ -255,8 +261,8 @@ namespace VoteMe.Application.Services
             await _cacheService.RemoveAsync($"election-{electionId}");
             await _cacheService.RemoveAsync($"organization-elections-{election.OrganizationId}");
 
-            return ApiResponse<ElectionDto>.SuccessResponse(
-                ElectionMapper.ToDto(election),
+            return ApiResponse<bool>.SuccessResponse(
+                true,
                 "Election opened successfully");
         }
     }

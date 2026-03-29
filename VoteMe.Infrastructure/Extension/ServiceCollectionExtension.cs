@@ -89,7 +89,7 @@ namespace VoteMe.Infrastructure.Extension
                 EndPoints = { "redis-12945.c247.eu-west-1-1.ec2.cloud.redislabs.com:12945" },
                 User = "default",
                 Password = "AecLgrRPnPFtL44kZmydioaQsDh3z2WW",
-                Ssl = false,          // ← try without SSL
+                Ssl = false,         
                 AbortOnConnectFail = false,
                 ConnectTimeout = 10000,
                 SyncTimeout = 5000,
@@ -205,7 +205,7 @@ namespace VoteMe.Infrastructure.Extension
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
             .UseSqlServerStorage(configuration.GetConnectionString("DefaultConnection")));
-
+            services.AddHangfireServer();
             //Jobs
             services.AddScoped<IElectionJobService, ElectionJobService>();
             services.AddScoped<IElectionScheduler, ElectionScheduler>();
