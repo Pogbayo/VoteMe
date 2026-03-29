@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using VoteMe.Application.DTOs.Candidate;
 
 namespace VoteMe.Application.DTOs.ElectionCategory
 {
@@ -11,8 +10,9 @@ namespace VoteMe.Application.DTOs.ElectionCategory
 
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
+        public Guid ElectionId { get; set; }
 
-        [MinLength(1, ErrorMessage = "At least one candidate is required.")]
-        public List<CreateCandidateDto> Candidates { get; set; } = new();
+        //[MinLength(1, ErrorMessage = "At least one candidate is required.")]
+        //public List<CreateCandidateDto> Candidates { get; set; } = new();
     }
 }

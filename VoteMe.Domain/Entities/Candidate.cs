@@ -6,7 +6,7 @@
         public string LastName { get; set; } = string.Empty;
         public string? DisplayName { get; set; }
         public string? Bio { get; set; } 
-        public string PhotoUrl { get; set; } = string.Empty;
+        public string? PhotoUrl { get; set; } 
         //public Election Election { get; set; } = null!;
         public Guid ElectionCategoryId { get; set; }
         public ElectionCategory ElectionCategory { get; set; } = null!;

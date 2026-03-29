@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace VoteMe.Application.DTOs.Candidate
 {
@@ -15,13 +16,10 @@ namespace VoteMe.Application.DTOs.Candidate
         [StringLength(100)]
         public string? DisplayName { get; set; }
 
-        [Required]
         [MaxLength(500)]
-        public string Bio { get; set; } = string.Empty;
+        public string? Bio { get; set; } = string.Empty;
 
-        [Required]
-        [Url]
-        public string PhotoUrl { get; set; } = string.Empty;
+        public IFormFile? PhotoLogo { get; set; } 
 
         [Required]
         public Guid ElectionCategoryId { get; set; }

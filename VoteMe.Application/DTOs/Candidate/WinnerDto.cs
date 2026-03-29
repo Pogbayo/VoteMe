@@ -20,5 +20,7 @@ namespace VoteMe.Application.DTOs.Candidate
 
         [Range(0, 100)]
         public double Percentage { get; set; }
+        public bool IsTie { get; set; }        
+        public List<TiedCandidateDto>? TiedCandidates { get; set; } 
     }
 }

@@ -7,6 +7,7 @@ using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Auth;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Domain.Enum;
 
 namespace VoteMe.Infrastructure.Consumers.Auth
 {
@@ -45,8 +46,7 @@ namespace VoteMe.Infrastructure.Consumers.Auth
 
                 await unitOfWork.AuditLogs.LogAsync(
                    eventData.UserId,
-                   "PasswordChanged",
-                   "AppUser",
+                   AuditAction.PasswordChanged,
                    $"User '{eventData.DisplayName}' changed their password"
                );
                 await unitOfWork.SaveChangesAsync();

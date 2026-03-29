@@ -4,7 +4,7 @@ using VoteMe.Application.Mappers.ElectionCategory;
 
 namespace VoteMe.Application.Mappers.Election
 {
-    public static class     ElectionMapper
+    public static class ElectionMapper
     {
         public static ElectionDto ToDto(Domain.Entities.Election election)
         {
@@ -39,5 +39,6 @@ namespace VoteMe.Application.Mappers.Election
         {
             return elections.Select(ToDto);
         }
+
     }
 }

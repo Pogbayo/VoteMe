@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
-using VoteMe.Infrastructure.Settings;
 
 namespace VoteMe.Infrastructure.Data
 {
@@ -12,7 +10,7 @@ namespace VoteMe.Infrastructure.Data
         public static async Task SeedAsync(IServiceProvider services)
         {
             await SeedRolesAsync(services);
-            await SeedSuperAdminAsync(services);
+            //await SeedSuperAdminAsync(services);
         }
 
         private static async Task SeedRolesAsync(IServiceProvider services)
@@ -26,26 +24,27 @@ namespace VoteMe.Infrastructure.Data
             }
         }
 
-        private static async Task SeedSuperAdminAsync(IServiceProvider services)
-        {
-            var userManager = services.GetRequiredService<UserManager<AppUser>>();
-            var settings = services.GetRequiredService<IOptions<SuperAdminSettings>>().Value;
+        //private static async Task SeedSuperAdminAsync(IServiceProvider services)
+        //{
+        //    var userManager = services.GetRequiredService<UserManager<AppUser>>();
+        //    var settings = services.GetRequiredService<IOptions<SuperAdminSettings>>().Value;
 
-            var superAdmin = await userManager.FindByEmailAsync(settings.Email);
-            if (superAdmin == null)
-            {
-                superAdmin = new AppUser
-                {
-                    FirstName = settings.FirstName,
-                    LastName = settings.LastName,
-                    Email = settings.Email,
-                    UserName = settings.Email,
-                    DisplayName = settings.DisplayName,
-                };
+        //    // Note: SuperAdmin is seeded separately and does not require an organization
+        //    var superAdmin = await userManager.FindByEmailAsync(settings.Email);
+        //    if (superAdmin == null)
+        //    {
+        //        superAdmin = new AppUser
+        //        {
+        //            FirstName = settings.FirstName,
+        //            LastName = settings.LastName,
+        //            Email = settings.Email,
+        //            UserName = settings.Email,
+        //            DisplayName = settings.DisplayName,
+        //        };
 
-                await userManager.CreateAsync(superAdmin, settings.Password);
-                await userManager.AddToRoleAsync(superAdmin, Roles.SuperAdmin);
-            }
-        }
+        //        await userManager.CreateAsync(superAdmin, settings.Password);
+        //        await userManager.AddToRoleAsync(superAdmin, Roles.SuperAdmin);
+        //    }
+        //}
     }
 }

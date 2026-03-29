@@ -21,7 +21,7 @@ namespace VoteMe.Application.DTOs.Organization
 
         public string AdminDisplayName { get; set; } = string.Empty;
 
-        public string DisplayName { get; set; } = string.Empty;
+        //public string DisplayName { get; set; } = string.Empty;
 
         [EmailAddress]
         public string AdminEmail { get; set; } = string.Empty;

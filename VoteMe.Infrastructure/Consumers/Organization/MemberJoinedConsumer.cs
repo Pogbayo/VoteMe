@@ -47,8 +47,7 @@ namespace VoteMe.Infrastructure.Consumers.Organization
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.UserId,
-                    "MemberJoined",
-                    "OrganizationMember",
+                    Domain.Enum.AuditAction.Join,
                     $"'{eventData.DisplayName}' joined organization '{eventData.OrganizationName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

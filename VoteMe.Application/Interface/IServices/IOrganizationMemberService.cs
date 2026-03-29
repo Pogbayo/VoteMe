@@ -12,6 +12,9 @@ namespace VoteMe.Application.Interface.IServices
         Task<ApiResponse<bool>> DemoteFromAdminAsync(Guid organizationId, Guid userId);
         Task<ApiResponse<bool>> LeaveOrganizationAsync(Guid organizationId);
         Task<ApiResponse<IEnumerable<OrganizationDto>>> GetUserOrganizationsAsync();
+        Task<ApiResponse<bool>> ApproveMemberAsync(Guid organizationId, Guid userId);
+        Task<ApiResponse<bool>> RejectMemberAsync(Guid organizationId, Guid userId);
+        Task<ApiResponse<IEnumerable<PendingMemberDto>>> GetPendingMembersAsync(Guid organizationId);
         Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetMembersAsync(Guid organizationId, int page = 1, int pageSize = 20);
     }
 }

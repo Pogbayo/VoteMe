@@ -14,19 +14,27 @@ namespace VoteMe.API.Extension
             services.AddEndpointsApiExplorer();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddSwaggerGen();
+            services.AddSignalR();
             return services;
         }
 
         public static WebApplication UseApiMiddleware(this WebApplication app)
         {
             app.UseMiddleware<ExceptionMiddleware>();
-            app.UseAuthentication();
-            app.MapHub<ElectionHub>("/hubs/election");
-            app.UseHangfireDashboard("/hangfire");
-            app.UseHttpsRedirection();
-            app.UseAuthorization();
+
             app.UseSwagger();
             app.UseSwaggerUI();
+
+            app.UseHttpsRedirection();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+            app.UseRateLimiter();
+            app.MapControllers();
+            app.MapHub<ElectionHub>("/hubs/election");
+
+            app.UseHangfireDashboard("/hangfire");
+
             return app;
         }
     }

@@ -61,6 +61,10 @@ public class ElectionCategoryService : IElectionCategoryService
         }
 
         var electionCategories = await _unitOfWork.ElectionCategories.GetElectionCategoriesAsync(electionId);
+
+        if (!electionCategories.Any())
+            return ApiResponse<IEnumerable<ElectionCategoryDto>>.SuccessResponse(Enumerable.Empty<ElectionCategoryDto>(), "ElectionCategories list is empty");
+        _logger.LogInformation($"Number of electionCategories: {electionCategories.Count()}. Categories: {string.Join(", ", electionCategories.Select(c => c.ToString()))}");
         var dtos = ElectionCategoryMapper.ToDtoList(electionCategories);
 
         await _cacheService.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(10));
@@ -84,7 +88,7 @@ public class ElectionCategoryService : IElectionCategoryService
                 cached, "ElectionCategory results retrieved successfully (from cache)");
         }
 
-        var totalVotes = electionCategory.Candidates.Count;
+        var totalVotes = electionCategory.Candidates!.Count;
 
         var candidateResults = electionCategory.Candidates
             ?.Select(c => CandidateMapper.ToResultDto(c, c.Votes?.Count ?? 0, totalVotes))
@@ -99,12 +103,12 @@ public class ElectionCategoryService : IElectionCategoryService
             result, "ElectionCategory results retrieved successfully");
     }
 
-    public async Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync(Guid electionId, CreateElectionCategoryDto dto)
+    public async Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync( CreateElectionCategoryDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
             throw new BadRequestException("ElectionCategory name is required");
 
-        var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
+        var election = await _unitOfWork.Elections.GetByIdAsync(dto.ElectionId);
         if (election == null)
             throw new NotFoundException("Election not found");
 
@@ -114,13 +118,13 @@ public class ElectionCategoryService : IElectionCategoryService
         {
             Name = dto.Name.Trim(),
             Description = dto.Description?.Trim() ?? string.Empty,
-            ElectionId = electionId
+            ElectionId = dto.ElectionId
         };
 
         await _unitOfWork.ElectionCategories.AddAsync(electionCategory);
         await _unitOfWork.SaveChangesAsync();
 
-        await _cacheService.RemoveAsync($"election-categories-{electionId}");
+        await _cacheService.RemoveAsync($"election-categories-{dto.ElectionId}");
 
         _logger.LogInformation(
             "ElectionCategory '{CategoryName}' created in election '{ElectionName}' by user {UserId}",
@@ -138,11 +142,8 @@ public class ElectionCategoryService : IElectionCategoryService
             "ElectionCategory created successfully");
     }
 
-    public async Task<ApiResponse<ElectionCategoryDto>> UpdateElectionCategoryAsync(Guid electionCategoryId, UpdateElectionCategoryDto dto)
+    public async Task<ApiResponse<bool>> UpdateElectionCategoryAsync(Guid electionCategoryId, UpdateElectionCategoryDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.Name))
-            throw new BadRequestException("ElectionCategory name is required");
-
         var electionCategory = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
         if (electionCategory == null)
             throw new NotFoundException("ElectionCategory not found");
@@ -157,10 +158,13 @@ public class ElectionCategoryService : IElectionCategoryService
             election.OrganizationId,
             "update ElectionCategories");
 
-        electionCategory.Name = dto.Name.Trim();
-        electionCategory.Description = dto.Description?.Trim() ?? string.Empty;
-        electionCategory.UpdateTimestamps();
+        if (!string.IsNullOrWhiteSpace(dto.Name))
+            electionCategory.Name = dto.Name.Trim();
 
+        if (dto.Description != null)
+            electionCategory.Description = dto.Description.Trim();
+
+        electionCategory.UpdateTimestamps();
         _unitOfWork.ElectionCategories.Update(electionCategory);
         await _unitOfWork.SaveChangesAsync();
 
@@ -178,11 +182,8 @@ public class ElectionCategoryService : IElectionCategoryService
             ElectionName = election.Name
         });
 
-        return ApiResponse<ElectionCategoryDto>.SuccessResponse(
-            ElectionCategoryMapper.ToDto(electionCategory),
-            "ElectionCategory updated successfully");
+        return ApiResponse<bool>.SuccessResponse(true, "ElectionCategory updated successfully");
     }
-
     public async Task<ApiResponse<bool>> DeleteElectionCategoryAsync(Guid electionCategoryId)
     {
         var electionCategory = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);

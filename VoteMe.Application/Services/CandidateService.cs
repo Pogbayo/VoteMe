@@ -20,27 +20,29 @@ public class CandidateService : ICandidateService
     private readonly IMessageBus _messageBus;
     private readonly ICacheService _cacheService;
     private readonly ILogger<CandidateService> _logger;
-
+        private readonly IImageService _imageService;
     public CandidateService(
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IMessageBus messageBus,
         ICacheService cacheService,
-        ILogger<CandidateService> logger)
+        ILogger<CandidateService> logger,
+        IImageService imageService)
     {
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _messageBus = messageBus;
         _cacheService = cacheService;
+        _imageService = imageService;
         _logger = logger;
     }
 
-    public async Task<ApiResponse<CandidateDto>> AddCandidateAsync(Guid electionCategoryId, CreateCandidateDto dto)
+    public async Task<ApiResponse<CandidateDto>> AddCandidateAsync(CreateCandidateDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.LastName))
             throw new BadRequestException("First name and last name are required");
 
-        var category = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
+        var category = await _unitOfWork.ElectionCategories.GetByIdAsync(dto.ElectionCategoryId);
         if (category == null || category.IsDeleted)
             throw new NotFoundException("Election category not found");
 
@@ -63,17 +65,35 @@ public class CandidateService : ICandidateService
             LastName = dto.LastName.Trim(),
             DisplayName = dto.DisplayName?.Trim(),
             Bio = dto.Bio?.Trim() ?? string.Empty,
-            PhotoUrl = dto.PhotoUrl.Trim(),
-            ElectionCategoryId = electionCategoryId,
+            ElectionCategoryId = dto.ElectionCategoryId,
         };
 
         await _unitOfWork.Candidates.AddAsync(candidate);
         await _unitOfWork.SaveChangesAsync();
 
-        await _cacheService.RemoveAsync($"election-category-candidates-{electionCategoryId}");
+        if (dto.PhotoLogo != null && dto.PhotoLogo.Length > 0)
+        {
+            var photoUrl = await _imageService.UploadImageAsync(
+                dto.PhotoLogo,
+                "Candidates",
+                candidate.Id); // folder: /Candidates/{candidate.Id}/photo
 
-        _logger.LogInformation("Candidate '{FullName}' added to category '{CategoryName}' in election '{ElectionName}' by user {UserId}",
-            candidate.FirstName + " " + candidate.LastName, category.Name, election.Name, _currentUserService.UserId);
+            if (string.IsNullOrEmpty(photoUrl))
+                throw new Domain.Exceptions.InvalidOperationException("Failed to upload candidate photo.");
+
+            candidate.PhotoUrl = photoUrl;
+            _unitOfWork.Candidates.Update(candidate);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        await _cacheService.RemoveAsync($"election-category-candidates-{dto.ElectionCategoryId}");
+
+        _logger.LogInformation(
+            "Candidate '{FullName}' added to category '{CategoryName}' in election '{ElectionName}' by user {UserId}",
+            candidate.FirstName + " " + candidate.LastName,
+            category.Name,
+            election.Name,
+            _currentUserService.UserId);
 
         await _messageBus.PublishAsync("candidate-added", new CandidateAddedEvent
         {
@@ -89,7 +109,6 @@ public class CandidateService : ICandidateService
             CandidateMapper.ToDto(candidate),
             "Candidate added successfully");
     }
-
     public async Task<ApiResponse<bool>> DeleteCandidateAsync(Guid candidateId)
     {
         var candidate = await _unitOfWork.Candidates.GetByIdAsync(candidateId);
@@ -147,8 +166,7 @@ public class CandidateService : ICandidateService
 
         var dto = CandidateMapper.ToDto(candidate);
 
-        await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(15));
-
+        await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5));
         return ApiResponse<CandidateDto>.SuccessResponse(dto, "Candidate retrieved successfully");
     }
 
@@ -210,8 +228,18 @@ public class CandidateService : ICandidateService
         if (!string.IsNullOrWhiteSpace(dto.Bio))
             candidate.Bio = dto.Bio.Trim();
 
-        if (!string.IsNullOrWhiteSpace(dto.PhotoUrl))
-            candidate.PhotoUrl = dto.PhotoUrl.Trim();
+        if (dto.PhotoFile != null && dto.PhotoFile.Length > 0)
+        {
+            var photoUrl = await _imageService.UploadImageAsync(
+                dto.PhotoFile,
+                "Candidates",
+                candidate.Id);
+
+            if (string.IsNullOrEmpty(photoUrl))
+                throw new Domain.Exceptions.InvalidOperationException("Failed to upload candidate photo.");
+
+            candidate.PhotoUrl = photoUrl;
+        }
 
         candidate.UpdateTimestamps();
 

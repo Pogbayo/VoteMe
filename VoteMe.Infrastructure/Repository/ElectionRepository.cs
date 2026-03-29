@@ -27,33 +27,41 @@ namespace VoteMe.Infrastructure.Repository
                 .ToListAsync();
         }
 
-        public async Task<Election?> GetWithCategoriesAsync(Guid electionId)
+        public async Task<Election?> GetWithCategoriesAsync(Guid electionId, int page = 1,
+            int pageSize = 20)
         {
             return await _dbSet
-                .Include(e => e.Categories)
+                .Include(e => e.Categories!)
                     .ThenInclude(ec => ec.Candidates)
                 .Include(e => e.Organization)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }
 
         public async Task<(IEnumerable<Election> Items, int TotalCount)> GetOrganizationElectionsAsync(
-            Guid organizationId,
-            int page = 1,
-            int pageSize = 20)
+        Guid organizationId,
+        int page = 1,
+        int pageSize = 20)
         {
-            return await GetPagedAsync(
-                predicate: e => e.OrganizationId == organizationId,
-                page: page,
-                pageSize: pageSize
-            );
+            var query = _dbSet.AsNoTracking()
+                .Where(e => e.OrganizationId == organizationId) 
+                .OrderBy(e => e.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
         }
 
         public async Task<Election?> GetFullElectionAsync(Guid electionId)
         {
             return await _dbSet
                 .AsNoTracking()
-                .Include(e => e.Categories)
-                    .ThenInclude(ec => ec.Candidates)
+                .Include(e => e.Categories!)
+                    .ThenInclude(ec => ec.Candidates!)
                         .ThenInclude(c => c.Votes)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }

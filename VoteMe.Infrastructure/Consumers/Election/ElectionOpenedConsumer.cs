@@ -49,8 +49,7 @@ namespace VoteMe.Infrastructure.Consumers.Election
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.OpenedByUserId,
-                    "ElectionOpened",
-                    "Election",
+                    Domain.Enum.AuditAction.ElectionOpen,
                     $"Election '{eventData.ElectionName}' opened in '{eventData.OrganizationName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

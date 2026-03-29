@@ -12,11 +12,11 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
-        public async Task<Organization?> GetByEmailAsync(string email)
-        {
-            return await _dbSet
-                .FirstOrDefaultAsync(o => o.Email == email);
-        }
+        //public async Task<Organization?> GetByEmailAsync(string email)
+        //{
+        //    return await _dbSet
+        //        .FirstOrDefaultAsync(o => o.Email == email);
+        //}
 
         public async Task<Organization?> GetByUniqueKeyAsync(string uniqueKey)
         {
@@ -29,10 +29,10 @@ namespace VoteMe.Infrastructure.Repository
         {
             return await _dbSet
                 .AsNoTracking()
-                .Include(o => o.Members.Where(m => !m.IsDeleted))
-                .Include(o => o.Elections.Where(e => !e.IsDeleted))
-                    .ThenInclude(e => e.Categories.Where(c => !c.IsDeleted))
-                        .ThenInclude(c => c.Candidates)
+                .Include(o => o.Members!)
+                .Include(o => o.Elections!)
+                    .ThenInclude(e => e.Categories!)
+                        .ThenInclude(c => c.Candidates!)
                             .ThenInclude(cand => cand.Votes)
                 .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
         }

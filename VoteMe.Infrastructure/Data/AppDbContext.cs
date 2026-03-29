@@ -35,6 +35,7 @@ namespace VoteMe.Infrastructure.Data
             // Organization indexes
             builder.Entity<Organization>()
                 .HasIndex(o => o.UniqueKey).IsUnique();
+
             builder.Entity<Organization>()
                 .HasIndex(o => o.Email).IsUnique();
 

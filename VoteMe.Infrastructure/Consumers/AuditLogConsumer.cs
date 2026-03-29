@@ -1,7 +1,4 @@
-﻿
-
-
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +40,6 @@ namespace VoteMe.Infrastructure.Consumers
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.UserId,
                     eventData.Action,
-                    eventData.Entity,
                     eventData.Details
                 );
 

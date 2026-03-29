@@ -7,6 +7,7 @@ using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Candidate;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Domain.Enum;
 
 namespace VoteMe.Infrastructure.Consumers.Candidate
 {
@@ -51,8 +52,7 @@ namespace VoteMe.Infrastructure.Consumers.Candidate
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.DeletedByUserId,
-                    "CandidateDeleted",
-                    "Candidate",
+                    AuditAction.Delete,
                     $"Candidate '{candidateName}' deleted from ElectionCategory '{eventData.ElectionCategoryName}' in election '{eventData.ElectionName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

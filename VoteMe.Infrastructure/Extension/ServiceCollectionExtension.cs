@@ -1,19 +1,24 @@
 ﻿using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Amazon.SimpleEmail;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
+using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.AWS;
-using VoteMe.Infrastructure.Consumers;
 using VoteMe.Infrastructure.Consumers.Auth;
 using VoteMe.Infrastructure.Consumers.Candidate;
 using VoteMe.Infrastructure.Consumers.Election;
@@ -21,6 +26,9 @@ using VoteMe.Infrastructure.Consumers.Organization;
 using VoteMe.Infrastructure.Consumers.Voting;
 using VoteMe.Infrastructure.Data;
 using VoteMe.Infrastructure.Jobs;
+using VoteMe.Infrastructure.Jwt;
+using VoteMe.Infrastructure.Repositories;
+using VoteMe.Infrastructure.Repository;
 using VoteMe.Infrastructure.Services;
 using VoteMe.Infrastructure.Settings;
 
@@ -38,8 +46,11 @@ namespace VoteMe.Infrastructure.Extension
             }
             services.Configure<SuperAdminSettings>(configuration.GetSection("SuperAdmin"));
 
-            //AWS Settings
-            services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+            ////AWS Settings
+            //services.Configure<AwsSettings>(configuration.GetSection("AWS"));
+
+            //JWT Settings
+            var jwtSettings = services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
             //CloudinarySettings
             services.Configure<CloudinarySettings>(configuration.GetSection("CloudinarySettings"));
@@ -62,7 +73,7 @@ namespace VoteMe.Infrastructure.Extension
                 sqlOptions.CommandTimeout(60)));
 
             //Identity
-            services.AddIdentity<AppUser, IdentityRole<Guid>>(options =>
+            services.AddIdentity<AppUser, AppRole>(options =>
             {
                 options.Password.RequireDigit = true;
                 options.Password.RequireUppercase = true;
@@ -71,16 +82,22 @@ namespace VoteMe.Infrastructure.Extension
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
-            // JWT Authentication
-            var jwtKey = configuration["JwtSettings:Key"];
-            var key = Encoding.UTF8.GetBytes(jwtKey!);
-
-
             //Redis
-            services.AddStackExchangeRedisCache(options =>
+
+            var options = new ConfigurationOptions
             {
-                options.Configuration = configuration["Redis:Configuration"];
-                options.InstanceName = "VoteMe:";
+                EndPoints = { "redis-12945.c247.eu-west-1-1.ec2.cloud.redislabs.com:12945" },
+                User = "default",
+                Password = "AecLgrRPnPFtL44kZmydioaQsDh3z2WW",
+                Ssl = false,         
+                AbortOnConnectFail = false,
+                ConnectTimeout = 10000,
+                SyncTimeout = 5000,
+            };
+
+            services.AddStackExchangeRedisCache(cacheOptions =>
+            {
+                cacheOptions.ConfigurationOptions = options;
             });
 
             services.AddAuthentication(options =>
@@ -90,22 +107,31 @@ namespace VoteMe.Infrastructure.Extension
             })
             .AddJwtBearer(options =>
             {
+                var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>();
+
+                if (jwtSettings == null)
+                     throw new Exception("JWT is null");
+                
+                if (string.IsNullOrEmpty(jwtSettings.Key))
+                     throw new Exception("JWT Key is missing!");
+                
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["JwtSettings:Issuer"],
-                    ValidAudience = configuration["JwtSettings:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                    ValidIssuer = jwtSettings!.Issuer,
+                    ValidAudience = jwtSettings.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                              Encoding.UTF8.GetBytes(jwtSettings.Key))
                 };
 
                 options.Events = new JwtBearerEvents
                 {
                     OnTokenValidated = async context =>
                     {
-                        var userManager = context.HttpContext.RequestServices
+                        var userManager = context.HttpContext.RequestServices   
                             .GetRequiredService<UserManager<AppUser>>();
 
                         var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -127,6 +153,44 @@ namespace VoteMe.Infrastructure.Extension
                 };
             });
 
+            //Rate-limiting
+            services.AddRateLimiter(options =>
+            {
+                // Global default - applies to all endpoints
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                    return RateLimitPartition.GetFixedWindowLimiter(ipAddress, _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,           // 100 requests
+                        Window = TimeSpan.FromMinutes(1), // per minute
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    });
+                });
+
+                // Strict - for auth endpoints (login, register)
+                options.AddFixedWindowLimiter("auth", opt =>
+                {
+                    opt.PermitLimit = 5;                      // 5 attempts
+                    opt.Window = TimeSpan.FromMinutes(15);     // per 15 minutes
+                    opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    opt.QueueLimit = 0;
+                });
+
+                // Voting - per user
+                options.AddFixedWindowLimiter("voting", opt =>
+                {
+                    opt.PermitLimit = 30;                     // 30 votes
+                    opt.Window = TimeSpan.FromMinutes(1);     // per minute
+                    opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    opt.QueueLimit = 0;
+                });
+
+                // Return 429 instead of 503
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            });
+
             //Swagger configuration
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(options =>
@@ -141,8 +205,8 @@ namespace VoteMe.Infrastructure.Extension
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
                     BearerFormat = "JWT",
                     In = ParameterLocation.Header,
                     Description = "Enter: Bearer {your token}"
@@ -164,22 +228,44 @@ namespace VoteMe.Infrastructure.Extension
                  });
             });
 
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"));
+                options.AddPolicy("OrgAdmin", policy => policy.RequireRole("OrgAdmin"));
+                options.AddPolicy("Voter", policy => policy.RequireRole("Voter"));
+                options.AddPolicy("OrgAdminOrSuperAdmin", policy => policy.RequireRole("OrgAdmin", "SuperAdmin"));
+                options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
+            });
+
             //Hangfire
             services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
             .UseSqlServerStorage(configuration.GetConnectionString("DefaultConnection")));
-
+            services.AddHangfireServer();
             //Jobs
             services.AddScoped<IElectionJobService, ElectionJobService>();
             services.AddScoped<IElectionScheduler, ElectionScheduler>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IImageService, ImageService>();
-
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<ICacheService, CacheService>();
+            services.AddSingleton<IMessageBus, MessageBus>();
+            services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+            services.AddScoped<ICandidateRepository, CandidateRepository>();
+            services.AddScoped<IElectionCategoryRepository, ElectionCategoryRepository>();
+            services.AddScoped<IElectionRepository, ElectionRepository>();
+            services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            services.AddScoped<IOrganizationMemberRepository, OrganizationMemberRepository>();
+            services.AddScoped<IVoteRepository, VoteRepository>();
+            services.AddScoped<ITokenService, TokenService>();
 
             // Consumers
             services.AddHostedService<UserRegisteredConsumer>();
-            services.AddHostedService<AuditLogConsumer>();
+            //services.AddHostedService<AuditLogConsumer>();
             services.AddHostedService<PasswordChangedConsumer>();
             services.AddHostedService<OrganizationCreatedConsumer>();
             services.AddHostedService<MemberJoinedConsumer>();
@@ -194,7 +280,6 @@ namespace VoteMe.Infrastructure.Extension
             services.AddHostedService<CandidateUpdatedConsumer>();
             services.AddHostedService<CandidateDeletedConsumer>();
 
-            services.AddSingleton<IMessageBus, MessageBus>();
             services.AddAuthorization();
             services.AddHttpContextAccessor();
 

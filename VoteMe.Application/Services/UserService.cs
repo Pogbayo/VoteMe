@@ -8,6 +8,7 @@ using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.User;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
@@ -20,11 +21,9 @@ namespace VoteMe.Application.Services
         private readonly ICacheService _cacheService;
         private readonly ILogger<UserService> _logger;
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<AppUser> _roleManager;
-        public UserService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager,RoleManager<AppUser> roleManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<UserService> logger)
+        public UserService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<UserService> logger)
         {
             _userManager = userManager;
-            _roleManager = roleManager;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _messageBus = messageBus;
@@ -41,10 +40,44 @@ namespace VoteMe.Application.Services
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            if (!_currentUserService.Roles.Contains(Roles.SuperAdmin) &&
-                    _currentUserService.UserId != userId)
+            if (!_currentUserService.Roles.Contains(Roles.SuperAdmin))
+                throw new ForbiddenException("Only SuperAdmins can delete users");
+
+            var memberships = await _unitOfWork.OrganizationMembers
+                .GetUserMembershipsWithOrgsAsync(userId);
+
+            foreach (var membership in memberships)
             {
-                throw new ForbiddenException("You are not authorized to delete this user");
+                if (membership.IsAdmin)
+                {
+                    var orgMembers = await _unitOfWork.OrganizationMembers
+                        .FindAsync(m => m.OrganizationId == membership.OrganizationId);
+
+                    var otherAdmins = orgMembers.Count(m => m.IsAdmin && m.UserId != userId);
+                    var otherMembers = orgMembers.Count(m => m.UserId != userId);
+
+                    if (otherAdmins == 0 && otherMembers > 0)
+                    {
+                        throw new BadRequestException(
+                            $"User is the only admin/user (left) in '{membership.Organization.Name}'. " +
+                            "Assign another admin before deleting this user.");
+                    }
+
+                    if (otherMembers == 0)
+                    {
+                        membership.Organization.IsDeleted = true;
+                        membership.Organization.IsActive = false;
+                        membership.Organization.DeletedAt = DateTime.UtcNow;
+                        _unitOfWork.Organizations.Update(membership.Organization);
+
+                        _logger.LogInformation(
+                            "Organization '{OrgName}' deleted — last member {UserId} was deleted by SuperAdmin",
+                            membership.Organization.Name, userId);
+                    }
+                }
+
+                membership.MarkAsDeleted();
+                _unitOfWork.OrganizationMembers.Update(membership);
             }
 
             user.MarkAsDeleted();
@@ -54,16 +87,7 @@ namespace VoteMe.Application.Services
             if (!updateResult.Succeeded)
             {
                 var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
-                throw new Domain.Exceptions.InvalidOperationException($"Failed to soft-delete user: {errors}");
-            }
-
-            var memberships = await _unitOfWork.OrganizationMembers
-                    .FindAsync(m => m.UserId == userId);
-
-            foreach (var m in memberships)
-            {
-                m.MarkAsDeleted();
-                _unitOfWork.OrganizationMembers.Update(m);
+                throw new Domain.Exceptions.InvalidOperationException($"Failed to delete user: {errors}");
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -77,7 +101,7 @@ namespace VoteMe.Application.Services
                 DeletedByUserId = _currentUserService.UserId
             });
 
-            return ApiResponse<bool>.SuccessResponse(true, "User soft-deleted successfully");
+            return ApiResponse<bool>.SuccessResponse(true, "User deleted successfully");
         }
 
         public async Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(
@@ -95,9 +119,7 @@ namespace VoteMe.Application.Services
                     $"Retrieved {cached.Users.Count} users from cache (page {page} of {pageSize}, total {cached.TotalCount})");
             }
 
-            var organization = await _unitOfWork.Organizations.FindOneAsync(
-                o => o.Id == organizationId && !o.IsDeleted);
-
+            var organization = await _unitOfWork.Organizations.GetWithMembersAsync(organizationId);
             if (organization == null)
                 throw new NotFoundException("Organization with provided ID does not exist or has been deleted");
 
@@ -131,7 +153,7 @@ namespace VoteMe.Application.Services
             }
 
             var totalCount = await _unitOfWork.OrganizationMembers
-                .CountAsync(m => m.OrganizationId == organizationId && !m.IsDeleted);
+                .CountAsync(m => m.OrganizationId == organizationId);
 
             var cacheResult = new 
             {
@@ -140,7 +162,7 @@ namespace VoteMe.Application.Services
             };
 
             await _cacheService.SetAsync(cacheKey, cacheResult, TimeSpan.FromMinutes(10));
-
+         
             return ApiResponse<IEnumerable<UserDto>>.SuccessResponse(
                 userDtoList,
                 $"Retrieved {userDtoList.Count} users (page {page} of {pageSize}, total {totalCount})");
@@ -153,29 +175,43 @@ namespace VoteMe.Application.Services
 
             var cacheKey = $"user-{userId}";
 
-            var cached = await _cacheService.GetAsync<UserDto>(cacheKey);
-            if (cached != null)
+            UserDto? cached = null;
+            try
             {
-                return ApiResponse<UserDto>.SuccessResponse(
-                    cached,
-                    "User retrieved successfully (from cache)");
+                cached = await _cacheService.GetAsync<UserDto>(cacheKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cache read failed for key {Key}, falling through to DB", cacheKey);
             }
 
+            if (cached != null)
+                return ApiResponse<UserDto>.SuccessResponse(cached, "User retrieved successfully (from cache)");
+
             var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null )  
+            if (user == null)
                 throw new NotFoundException("User with provided ID not found");
 
             var roles = await _userManager.GetRolesAsync(user);
-
             var userDto = UserMapper.ToDto(user, roles);
 
-            await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
+            try
+            {
+                await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cache write failed for key {Key}", cacheKey);
+            }
 
-            return ApiResponse<UserDto>.SuccessResponse(
-                userDto,
-                "User retrieved successfully");
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: _currentUserService.UserId,
+                action: AuditAction.Read,
+                details: $"User {_currentUserService.UserId} retrieved user {user.Email} (ID: {user.Id})"
+            );
+
+            return ApiResponse<UserDto>.SuccessResponse(userDto, "User retrieved successfully");
         }
-
         public async Task<ApiResponse<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto dto)
         {
             if (userId == Guid.Empty)
@@ -222,8 +258,7 @@ namespace VoteMe.Application.Services
 
             await _unitOfWork.AuditLogs.LogAsync(
                 userId: _currentUserService.UserId,
-                action: "UserUpdated",
-                entity: "AppUser",
+                action: AuditAction.Update,
                 details: $"User {user.Email} (ID: {userId}) updated by {_currentUserService.UserId}. Changed fields: {string.Join(", ", changes)}"
             );
 

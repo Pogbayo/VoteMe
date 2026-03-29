@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace VoteMe.Application.DTOs.Organization
 {
@@ -29,6 +30,9 @@ namespace VoteMe.Application.DTOs.Organization
         [Required]
         [Phone]
         public string AdminPhoneNumber { get; set; } = string.Empty;
+
+        public IFormFile? LogoFile { get; set; } 
+
 
         [Required]
         [MinLength(6)]

@@ -12,6 +12,7 @@ using VoteMe.Application.Mappers.Auth;
 using VoteMe.Application.Mappers.Organization;
 using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services
@@ -19,17 +20,17 @@ namespace VoteMe.Application.Services
     public class AuthService : IAuthService
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly RoleManager<AppRole> _roleManager;
         private readonly IMessageBus _messageBus;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITokenService _tokenService;
         private readonly IImageService _imageService;
         private readonly ILogger<AuthService> _logger;
-
+        //private readonly IAuditLogService _auditLogService;
 
         public AuthService(
             IImageService imageService,
             ILogger<AuthService> logger,
+            //IAuditLogService auditLogService,
             UserManager<AppUser> userManager,
             RoleManager<AppRole> roleManager,
             IMessageBus messageBus,
@@ -39,7 +40,6 @@ namespace VoteMe.Application.Services
             _imageService = imageService;
             _logger = logger;
             _userManager = userManager;
-            _roleManager = roleManager;
             _messageBus = messageBus;
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
@@ -61,9 +61,7 @@ namespace VoteMe.Application.Services
         }
 
 
-        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(
-             CreateOrganizationDto dto,
-             IFormFile? logoFile)
+        public async Task<ApiResponse<CreatedOrganizationDto>> RegisterOrganizationAsync(CreateOrganizationDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.OrganizationName))
                 throw new BadRequestException("Organization name is required");
@@ -142,11 +140,11 @@ namespace VoteMe.Application.Services
                 await _unitOfWork.Organizations.AddAsync(organization);
                 await _unitOfWork.SaveChangesAsync();
 
-                string? logoUrl = null;
-                if (logoFile != null && logoFile.Length > 0)
+                var logoUrl = (string)null!;
+                if (dto.LogoFile != null && dto.LogoFile.Length > 0)
                 {
                     logoUrl = await _imageService.UploadImageAsync(
-                        logoFile,
+                        dto.LogoFile,
                         "Organization",
                         organization.Id); // folder: /Organization/{organization.Id}/logo
 
@@ -157,7 +155,7 @@ namespace VoteMe.Application.Services
 
                     organization.LogoUrl = logoUrl;
                     _unitOfWork.Organizations.Update(organization);
-                    await _unitOfWork.SaveChangesAsync();
+                    //await _unitOfWork.SaveChangesAsync();
                 }
 
                 var membership = new OrganizationMember
@@ -165,7 +163,8 @@ namespace VoteMe.Application.Services
                     UserId = adminUser.Id,
                     OrganizationId = organization.Id,
                     IsAdmin = true,
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    Status = MembershipStatus.Approved
                 };
 
                 await _unitOfWork.OrganizationMembers.AddAsync(membership);
@@ -182,7 +181,7 @@ namespace VoteMe.Application.Services
 
                 await _unitOfWork.CommitTransactionAsync();
 
-                var responseDto = OrganizationMapper.ToCreatedOrganizationDto(organization);
+                var responseDto = OrganizationMapper.ToCreatedOrganizationDto(organization, adminUser);
 
                 return ApiResponse<CreatedOrganizationDto>.SuccessResponse(
                     responseDto,
@@ -202,7 +201,6 @@ namespace VoteMe.Application.Services
                 throw;
             }
         }
-
 
         public async Task<ApiResponse<AuthResponseDto>> RegisterUserAsync(RegisterUserDto dto)
         {
@@ -250,7 +248,8 @@ namespace VoteMe.Application.Services
                     UserId = user.Id,
                     OrganizationId = organization.Id,
                     IsAdmin = false,
-                    JoinedAt = DateTime.UtcNow
+                    JoinedAt = DateTime.UtcNow,
+                    Status = MembershipStatus.Pending
                 };
 
                 await _unitOfWork.OrganizationMembers.AddAsync(member);
@@ -278,7 +277,6 @@ namespace VoteMe.Application.Services
             }
         }
 
-      
         public async Task<ApiResponse<AuthResponseDto>> LoginAsync(LoginDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Email))
@@ -297,8 +295,17 @@ namespace VoteMe.Application.Services
             if (user.IsDeleted)
                 throw new UnauthorizedException("Account has been deactivated");
 
+            user.TokenVersion++;
+            await _userManager.UpdateAsync(user);
+
             var roles = await _userManager.GetRolesAsync(user);
             var token = await _tokenService.GenerateAccessTokenAsync(user);
+            
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: user.Id,
+                action: AuditAction.Login,
+                details: $"User {user.Email} (ID: {user.Id}) logged in"
+            );
 
             return ApiResponse<AuthResponseDto>.SuccessResponse(
                 AuthMapper.ToAuthResponseDto(user, token, roles),
@@ -345,6 +352,12 @@ namespace VoteMe.Application.Services
 
             user.TokenVersion++;
             await _userManager.UpdateAsync(user);
+            
+            await _unitOfWork.AuditLogs.LogAsync(
+                userId: user.Id,
+                action: AuditAction.Logout,
+                details: $"User {user.Email} (ID: {user.Id}) logged out"
+            );
 
             return ApiResponse<bool>.SuccessResponse(true, "Logout successful");
         }

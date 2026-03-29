@@ -47,8 +47,7 @@ namespace VoteMe.Infrastructure.Consumers.Organization
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.AdminUserId,
-                    "OrganizationCreated",
-                    "Organization",
+                    Domain.Enum.AuditAction.Create,
                     $"Organization '{eventData.OrganizationName}' created by '{eventData.AdminDisplayName}'"
                 );
                 await unitOfWork.SaveChangesAsync();

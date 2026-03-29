@@ -20,11 +20,11 @@ namespace VoteMe.Application.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly IMessageBus _messageBus;
         private readonly ICacheService _cacheService;
-        private readonly UserManager<AppUser> _userManager;
-        public OrganizationService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<OrganizationService> logger)
+        private readonly IImageService _imageService;
+        public OrganizationService(IUnitOfWork unitOfWork,IImageService imageService, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<OrganizationService> logger)
         {
             _logger = logger;
-            _userManager = userManager;
+            _imageService = imageService;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _messageBus = messageBus;
@@ -97,13 +97,15 @@ namespace VoteMe.Application.Services
                 "Organization retrieved successfully");
         }
 
-        public async void UpdateOrganizationAsync(
+        public async Task<ApiResponse<bool>> UpdateOrganizationAsync(
             Guid organizationId,
             UpdateOrganizationDto dto)
         {
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
+
             if (organization == null || organization.IsDeleted)
                 throw new NotFoundException("Organization not found");
+            var userId = _currentUserService.UserId;
 
             await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
                 _unitOfWork,
@@ -117,16 +119,26 @@ namespace VoteMe.Application.Services
             if (!string.IsNullOrWhiteSpace(dto.Description))
                 organization.Description = dto.Description.Trim();
 
-            if (dto.Logo == null)
-                organization.LogoUrl = organization.LogoUrl;
 
-           
+            if (dto.Logo == null)
+            {
+                organization.LogoUrl = organization.LogoUrl;
+            }
+            else
+            {
+                var imageUrl = await _imageService.UploadImageAsync(dto.Logo, "Organization", organization.Id);
+                organization.LogoUrl = imageUrl;
+            }
+
             organization.UpdateTimestamps();
 
             _unitOfWork.Organizations.Update(organization);
             await _unitOfWork.SaveChangesAsync();
 
             await _cacheService.RemoveAsync($"organization-{organizationId}");
+            await _unitOfWork.AuditLogs.LogAsync(userId, AuditAction.Update, $"User {userId} updated organization {organizationId}");
+
+            return ApiResponse<bool>.SuccessResponse(true);
         }
     }
 }

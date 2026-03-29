@@ -54,8 +54,7 @@ namespace VoteMe.Infrastructure.Consumers.Organization
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.DeletedByUserId,
-                    "OrganizationDeleted",
-                    "Organization",
+                    Domain.Enum.AuditAction.Delete,
                     $"Organization '{eventData.OrganizationName}' (ID: {eventData.OrganizationId}) " +
                     $"was deleted by user {eventData.DeletedByUserId}. " +
                     $"{eventData.MemberEmails?.Count ?? 0} members were notified.");

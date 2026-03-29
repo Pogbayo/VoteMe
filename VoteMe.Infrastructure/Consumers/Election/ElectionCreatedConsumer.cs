@@ -7,6 +7,8 @@ using RabbitMQ.Client.Events;
 using VoteMe.Application.Events.Election;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
+using VoteMe.Domain.Entities;
+using VoteMe.Infrastructure.Services;
 
 namespace VoteMe.Infrastructure.Consumers.Election
 {
@@ -37,6 +39,7 @@ namespace VoteMe.Infrastructure.Consumers.Election
                 using var scope = _scopeFactory.CreateScope();
                 var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
                 await notificationService.SendElectionCreatedEmailAsync(
                      eventData.MemberEmails,
@@ -47,10 +50,14 @@ namespace VoteMe.Infrastructure.Consumers.Election
 
                 await unitOfWork.AuditLogs.LogAsync(
                     eventData.CreatedByUserId,
-                    "ElectionCreated",
-                    "Election",
+                    Domain.Enum.AuditAction.Create,
                     $"Election '{eventData.ElectionName}' created with {eventData.ElectionCategoryNames.Count} categories in '{eventData.OrganizationName}'"
                 );
+
+                await cacheService.RemoveAsync($"organization-elections-{eventData.OrganizationId}");
+                await cacheService.RemoveAsync($"election-{eventData.ElectionId}");
+                //await _cacheService.RemoveAsync($"organization-elections-{election.OrganizationId}");
+                await cacheService.RemoveAsync($"election-results-{eventData.ElectionId}");
                 await unitOfWork.SaveChangesAsync();
 
                 Channel.BasicAck(args.DeliveryTag, false);
