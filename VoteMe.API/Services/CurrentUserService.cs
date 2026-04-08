@@ -12,25 +12,31 @@ namespace VoteMe.API.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public Guid UserId =>
-            Guid.Parse(_httpContextAccessor.HttpContext?.User
-                .FindFirstValue(ClaimTypes.NameIdentifier) ?? Guid.Empty.ToString());
+        public Guid UserId
+        {
+            get
+            {
+                var value = _httpContextAccessor.HttpContext?.User
+                    .FindFirstValue(ClaimTypes.NameIdentifier);
+
+                return Guid.TryParse(value, out var id) ? id : Guid.Empty;
+            }
+        }
 
         public string Email =>
             _httpContextAccessor.HttpContext?.User
                 .FindFirstValue(ClaimTypes.Email) ?? string.Empty;
 
-        public IEnumerable<string> Roles =>
-            _httpContextAccessor.HttpContext?.User
-                .FindAll(ClaimTypes.Role)
-                .Select(c => c.Value) ?? Enumerable.Empty<string>();
+        public bool IsSuperAdmin =>
+                bool.TryParse(_httpContextAccessor.HttpContext?.User
+                    .FindFirstValue("isSuperAdmin"), out var isSuper) && isSuper;
 
         public bool IsAuthenticated =>
             _httpContextAccessor.HttpContext?.User.Identity?.IsAuthenticated ?? false;
 
-        public string DisplayName =>
-       _httpContextAccessor.HttpContext?.User
-           .FindFirstValue("displayName") ?? string.Empty;
+       // public string GlobalDisplayName =>
+       //_httpContextAccessor.HttpContext?.User
+       //    .FindFirstValue("globalDisplayName") ?? string.Empty;
 
         public string FirstName =>
             _httpContextAccessor.HttpContext?.User

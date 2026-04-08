@@ -10,32 +10,21 @@ namespace VoteMe.Application.DTOs.Organization
         public string OrganizationName { get; set; } = string.Empty;
 
         [MaxLength(500)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string AdminFirstName { get; set; } = string.Empty;
+        public string? FirstName { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string AdminLastName { get; set; } = string.Empty;
+        public string? LastName { get; set; }
 
-        [StringLength(100)]
-        public string AdminDisplayName { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
 
         [Required]
         [EmailAddress]
-        public string AdminEmail { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
 
-        [Required]
-        [Phone]
-        public string AdminPhoneNumber { get; set; } = string.Empty;
-
-        public IFormFile? LogoFile { get; set; } 
-
-
-        [Required]
         [MinLength(6)]
-        public string Password { get; set; } = string.Empty;
+        public string? Password { get; set; }
+
+        public IFormFile? LogoFile { get; set; }
     }
 }

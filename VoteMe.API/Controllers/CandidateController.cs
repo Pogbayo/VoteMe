@@ -26,7 +26,7 @@ public class CandidateController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> AddCandidate([FromForm] CreateCandidateDto dto)
     {
         var result = await _candidateService.AddCandidateAsync(dto);
@@ -34,7 +34,7 @@ public class CandidateController : BaseController
     }
 
     [HttpPatch("{candidateId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> UpdateCandidate([FromRoute]Guid candidateId, [FromForm] UpdateCandidateDto dto)
     {
         var result = await _candidateService.UpdateCandidateAsync(candidateId, dto);
@@ -42,7 +42,7 @@ public class CandidateController : BaseController
     }
 
     [HttpDelete("{candidateId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> DeleteCandidate(Guid candidateId)
     {
         var result = await _candidateService.DeleteCandidateAsync(candidateId);

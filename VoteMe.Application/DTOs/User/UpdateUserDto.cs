@@ -9,8 +9,5 @@ namespace VoteMe.Application.DTOs.User
 
         [StringLength(50)]
         public string? LastName { get; set; }
-
-        [StringLength(100)]
-        public string? DisplayName { get; set; }
     }
 }

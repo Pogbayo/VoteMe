@@ -14,6 +14,7 @@ namespace VoteMe.Application.DTOs.Election
         public ElectionStatus Status { get; set; } = ElectionStatus.Pending;
         public bool IsPrivate { get; set; }
         public Guid OrganizationId { get; set; }
+        public int CategoryCount { get; set; }
         public List<ElectionCategoryDto> Categories { get; set; } = new();
         public DateTime CreatedAt { get; set; }
     }

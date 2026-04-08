@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using VoteMe.Domain.Enum;
 
 namespace VoteMe.Application.DTOs.Auth
 {
@@ -13,10 +14,6 @@ namespace VoteMe.Application.DTOs.Auth
         public string LastName { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(50)]
-        public string DisplayName { get; set; } = string.Empty;
-
-        [Required]
         public Guid UserId { get; set; }
 
         [Required]
@@ -26,6 +23,5 @@ namespace VoteMe.Application.DTOs.Auth
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        public List<string> Roles { get; set; } = new();
     }
 }

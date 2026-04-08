@@ -14,7 +14,10 @@ namespace VoteMe.Application.DTOs.Auth
 
         [Required]
         [StringLength(50)]
-        public required string DisplayName { get; set; } 
+        public required string DisplayName { get; set; }
+
+        [Required]
+        public required string UniqueKey { get; set; }
 
         [Required]
         [EmailAddress]
@@ -24,7 +27,6 @@ namespace VoteMe.Application.DTOs.Auth
         [MinLength(6)]
         public required string Password { get; set; }
 
-        [Required]
-        public required string UniqueKey { get; set; }
+        
     }
 }

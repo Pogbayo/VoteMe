@@ -4,6 +4,7 @@ using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Candidate;
 using VoteMe.Application.Events.Candidate;
 using VoteMe.Application.Events.Candidate.VoteMe.Application.Events.Candidate;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Candidate;
@@ -37,6 +38,7 @@ public class CandidateService : ICandidateService
         _logger = logger;
     }
 
+
     public async Task<ApiResponse<CandidateDto>> AddCandidateAsync(CreateCandidateDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.FirstName) || string.IsNullOrWhiteSpace(dto.LastName))
@@ -44,17 +46,20 @@ public class CandidateService : ICandidateService
 
         var category = await _unitOfWork.ElectionCategories.GetByIdAsync(dto.ElectionCategoryId);
         if (category == null || category.IsDeleted)
-            throw new NotFoundException("Election category not found");
+            throw new BadRequestException("Election category not found");
 
         var election = await _unitOfWork.Elections.GetByIdAsync(category.ElectionId);
         if (election == null || election.IsDeleted)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "add candidates");
+        var userRole = await _unitOfWork.OrganizationMembers
+            .GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (userRole == null)
+            throw new ForbiddenException("You are not a member of this organization");
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.CreateCandidate))
+            throw new ForbiddenException("You do not have permission to add candidates");
 
         if (election.Status != ElectionStatus.Pending)
             throw new BadRequestException("Cannot add candidates after election has started");
@@ -71,13 +76,9 @@ public class CandidateService : ICandidateService
         await _unitOfWork.Candidates.AddAsync(candidate);
         await _unitOfWork.SaveChangesAsync();
 
-        if (dto.PhotoLogo != null && dto.PhotoLogo.Length > 0)
+        if (dto.PhotoFile != null && dto.PhotoFile.Length > 0)
         {
-            var photoUrl = await _imageService.UploadImageAsync(
-                dto.PhotoLogo,
-                "Candidates",
-                candidate.Id); // folder: /Candidates/{candidate.Id}/photo
-
+            var photoUrl = await _imageService.UploadImageAsync(dto.PhotoFile, "Candidates", candidate.Id);
             if (string.IsNullOrEmpty(photoUrl))
                 throw new Domain.Exceptions.InvalidOperationException("Failed to upload candidate photo.");
 
@@ -88,12 +89,8 @@ public class CandidateService : ICandidateService
 
         await _cacheService.RemoveAsync($"election-category-candidates-{dto.ElectionCategoryId}");
 
-        _logger.LogInformation(
-            "Candidate '{FullName}' added to category '{CategoryName}' in election '{ElectionName}' by user {UserId}",
-            candidate.FirstName + " " + candidate.LastName,
-            category.Name,
-            election.Name,
-            _currentUserService.UserId);
+        _logger.LogInformation("Candidate '{FullName}' added to category '{CategoryName}'",
+            $"{candidate.FirstName} {candidate.LastName}", category.Name);
 
         await _messageBus.PublishAsync("candidate-added", new CandidateAddedEvent
         {
@@ -113,21 +110,25 @@ public class CandidateService : ICandidateService
     {
         var candidate = await _unitOfWork.Candidates.GetByIdAsync(candidateId);
         if (candidate == null || candidate.IsDeleted)
-            throw new NotFoundException("Candidate not found");
+            throw new BadRequestException("Candidate not found");
 
         var category = await _unitOfWork.ElectionCategories.GetByIdAsync(candidate.ElectionCategoryId);
         if (category == null || category.IsDeleted)
-            throw new NotFoundException("Election category not found");
+            throw new BadRequestException("Election category not found");
 
         var election = await _unitOfWork.Elections.GetByIdAsync(category.ElectionId);
         if (election == null || election.IsDeleted)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "delete this candidate");
+        // Get user's role in this organization
+        var userRole = await _unitOfWork.OrganizationMembers
+            .GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (userRole == null)
+            throw new ForbiddenException("You are not a member of this organization");
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.DeleteCandidate))
+            throw new ForbiddenException("You do not have permission to delete this candidate");
 
         if (election.Status != ElectionStatus.Pending)
             throw new BadRequestException("Cannot delete candidates after election has started");
@@ -137,8 +138,7 @@ public class CandidateService : ICandidateService
 
         await _cacheService.RemoveAsync($"election-category-candidates-{candidate.ElectionCategoryId}");
 
-        _logger.LogInformation("Candidate '{FullName}' deleted from category '{CategoryName}' by user {UserId}",
-            candidate.FirstName + " " + candidate.LastName, category.Name, _currentUserService.UserId);
+        _logger.LogInformation("Candidate '{FullName}' deleted", $"{candidate.FirstName} {candidate.LastName}");
 
         await _messageBus.PublishAsync("candidate-deleted", new CandidateDeletedEvent
         {
@@ -152,7 +152,6 @@ public class CandidateService : ICandidateService
 
         return ApiResponse<bool>.SuccessResponse(true, "Candidate deleted successfully");
     }
-
     public async Task<ApiResponse<CandidateDto>> GetCandidateAsync(Guid candidateId)
     {
         var cacheKey = $"candidate-{candidateId}";
@@ -162,7 +161,7 @@ public class CandidateService : ICandidateService
 
         var candidate = await _unitOfWork.Candidates.GetByIdAsync(candidateId);
         if (candidate == null || candidate.IsDeleted)
-            throw new NotFoundException("Candidate not found");
+            throw new BadRequestException("Candidate not found");
 
         var dto = CandidateMapper.ToDto(candidate);
 
@@ -179,7 +178,7 @@ public class CandidateService : ICandidateService
 
         var category = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
         if (category == null || category.IsDeleted)
-            throw new NotFoundException("Election category not found");
+            throw new BadRequestException("Election category not found");
 
         var candidates = await _unitOfWork.Candidates
             .FindAsync(c => c.ElectionCategoryId == electionCategoryId && !c.IsDeleted);
@@ -197,21 +196,25 @@ public class CandidateService : ICandidateService
     {
         var candidate = await _unitOfWork.Candidates.GetByIdAsync(candidateId);
         if (candidate == null || candidate.IsDeleted)
-            throw new NotFoundException("Candidate not found");
+            throw new BadRequestException("Candidate not found");
 
         var category = await _unitOfWork.ElectionCategories.GetByIdAsync(candidate.ElectionCategoryId);
         if (category == null || category.IsDeleted)
-            throw new NotFoundException("Election category not found");
+            throw new BadRequestException("Election category not found");
 
         var election = await _unitOfWork.Elections.GetByIdAsync(category.ElectionId);
         if (election == null || election.IsDeleted)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException   ("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "update this candidate");
+        // Get user's role in this organization
+        var userRole = await _unitOfWork.OrganizationMembers
+            .GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (userRole == null)
+            throw new ForbiddenException("You are not a member of this organization");
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.UpdateCandidate))
+            throw new ForbiddenException("You do not have permission to update this candidate");
 
         if (election.Status != ElectionStatus.Pending)
             throw new BadRequestException("Cannot update candidates after election has started");
@@ -230,11 +233,7 @@ public class CandidateService : ICandidateService
 
         if (dto.PhotoFile != null && dto.PhotoFile.Length > 0)
         {
-            var photoUrl = await _imageService.UploadImageAsync(
-                dto.PhotoFile,
-                "Candidates",
-                candidate.Id);
-
+            var photoUrl = await _imageService.UploadImageAsync(dto.PhotoFile, "Candidates", candidate.Id);
             if (string.IsNullOrEmpty(photoUrl))
                 throw new Domain.Exceptions.InvalidOperationException("Failed to upload candidate photo.");
 
@@ -242,15 +241,13 @@ public class CandidateService : ICandidateService
         }
 
         candidate.UpdateTimestamps();
-
         _unitOfWork.Candidates.Update(candidate);
         await _unitOfWork.SaveChangesAsync();
 
         await _cacheService.RemoveAsync($"candidate-{candidateId}");
         await _cacheService.RemoveAsync($"election-category-candidates-{candidate.ElectionCategoryId}");
 
-        _logger.LogInformation("Candidate '{FullName}' updated in category '{CategoryName}' by user {UserId}",
-            candidate.FirstName + " " + candidate.LastName, category.Name, _currentUserService.UserId);
+        _logger.LogInformation("Candidate '{FullName}' updated", $"{candidate.FirstName} {candidate.LastName}");
 
         await _messageBus.PublishAsync("candidate-updated", new CandidateUpdatedEvent
         {

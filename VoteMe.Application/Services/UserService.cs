@@ -3,10 +3,10 @@ using Microsoft.Extensions.Logging;
 using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.User;
 using VoteMe.Application.Events.User;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.User;
-using VoteMe.Domain.Constants;
 using VoteMe.Domain.Entities;
 using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
@@ -21,188 +21,136 @@ namespace VoteMe.Application.Services
         private readonly ICacheService _cacheService;
         private readonly ILogger<UserService> _logger;
         private readonly UserManager<AppUser> _userManager;
-        public UserService(IUnitOfWork unitOfWork,UserManager<AppUser> userManager, ICurrentUserService currentUserService, IMessageBus messageBus, ICacheService cacheService, ILogger<UserService> logger)
+
+        public UserService(
+            IUnitOfWork unitOfWork,
+            UserManager<AppUser> userManager,
+            ICurrentUserService currentUserService,
+            IMessageBus messageBus,
+            ICacheService cacheService,
+            ILogger<UserService> logger)
         {
-            _userManager = userManager;
             _unitOfWork = unitOfWork;
+            _userManager = userManager;
             _currentUserService = currentUserService;
             _messageBus = messageBus;
             _cacheService = cacheService;
             _logger = logger;
         }
 
-        public async Task<ApiResponse<bool>> DeleteUserAsync(Guid userId)
+        public async Task<ApiResponse<bool>> DeleteUserAsync(Guid userId, Guid organizationId)
         {
             if (userId == Guid.Empty)
-                throw new BadRequestException("Please, provide a userId");
+                throw new BadRequestException("Please provide a valid user ID.");
+
+            var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
+            if (organization == null || organization.IsDeleted)
+                throw new BadRequestException("Organization not found");
 
             var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null)
-                throw new NotFoundException("User not found");
+            if (user == null || user.IsDeleted)
+                throw new BadRequestException("User not found");
 
-            if (!_currentUserService.Roles.Contains(Roles.SuperAdmin))
-                throw new ForbiddenException("Only SuperAdmins can delete users");
+            var member = await _unitOfWork.OrganizationMembers
+                .GetMemberAsync(organizationId,userId);
 
-            var memberships = await _unitOfWork.OrganizationMembers
-                .GetUserMembershipsWithOrgsAsync(userId);
+            if (member == null || member.IsDeleted)
+                throw new BadRequestException("User is not a member of this organization");
 
-            foreach (var membership in memberships)
+            var requesterRole = await _unitOfWork.OrganizationMembers
+                .GetUserRoleAsync(_currentUserService.UserId, organizationId);
+
+            if (requesterRole == null || !PermissionChecker.HasPermission(requesterRole.Value, Permission.RemoveMember))
+                throw new ForbiddenException("You do not have permission to remove this user from the organization");
+
+            if (member.Role == OrganizationRole.Owner)
             {
-                if (membership.IsAdmin)
-                {
-                    var orgMembers = await _unitOfWork.OrganizationMembers
-                        .FindAsync(m => m.OrganizationId == membership.OrganizationId);
+                var ownerCount = await _unitOfWork.OrganizationMembers
+                    .CountAsync(m => m.OrganizationId == organizationId
+                                  && m.Role == OrganizationRole.Owner
+                                  && !m.IsDeleted);
 
-                    var otherAdmins = orgMembers.Count(m => m.IsAdmin && m.UserId != userId);
-                    var otherMembers = orgMembers.Count(m => m.UserId != userId);
-
-                    if (otherAdmins == 0 && otherMembers > 0)
-                    {
-                        throw new BadRequestException(
-                            $"User is the only admin/user (left) in '{membership.Organization.Name}'. " +
-                            "Assign another admin before deleting this user.");
-                    }
-
-                    if (otherMembers == 0)
-                    {
-                        membership.Organization.IsDeleted = true;
-                        membership.Organization.IsActive = false;
-                        membership.Organization.DeletedAt = DateTime.UtcNow;
-                        _unitOfWork.Organizations.Update(membership.Organization);
-
-                        _logger.LogInformation(
-                            "Organization '{OrgName}' deleted — last member {UserId} was deleted by SuperAdmin",
-                            membership.Organization.Name, userId);
-                    }
-                }
-
-                membership.MarkAsDeleted();
-                _unitOfWork.OrganizationMembers.Update(membership);
+                if (ownerCount <= 1)
+                    throw new BadRequestException("Cannot remove the last Owner. Transfer ownership first.");
             }
 
-            user.MarkAsDeleted();
-            user.TokenVersion++;
-
-            var updateResult = await _userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
-            {
-                var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
-                throw new Domain.Exceptions.InvalidOperationException($"Failed to delete user: {errors}");
-            }
+            member.MarkAsDeleted();
+            _unitOfWork.OrganizationMembers.Update(member);
 
             await _unitOfWork.SaveChangesAsync();
-            await _cacheService.RemoveAsync($"user-{userId}");
+
+            await _cacheService.RemoveAsync($"organization-members-{organizationId}");
+            await _cacheService.RemoveAsync($"user-organizations-{userId}");
+
+            _logger.LogInformation("User {UserId} removed from organization '{OrgName}' by {DeletedBy}",
+                userId, organization.Name, _currentUserService.UserId);
 
             await _messageBus.PublishAsync("user-deleted", new UserDeletedEvent
             {
                 UserId = userId,
                 Email = user.Email!,
-                DisplayName = user.DisplayName,
+                DisplayName = member.DisplayName!,
                 DeletedByUserId = _currentUserService.UserId
             });
 
-            return ApiResponse<bool>.SuccessResponse(true, "User deleted successfully");
+            return ApiResponse<bool>.SuccessResponse(true, "User removed from organization successfully");
         }
-
-        public async Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(
-              Guid organizationId,
-              int page = 1,
-              int pageSize = 20)
+        public async Task<ApiResponse<IEnumerable<OrganizationUserDto>>> GetAllUsersAsync(Guid organizationId, int page = 1, int pageSize = 20)
         {
             var cacheKey = $"org-users-{organizationId}-page{page}-size{pageSize}";
 
-            var cached = await _cacheService.GetAsync<PagedUserResult>(cacheKey);
+            var cached = await _cacheService.GetAsync<PagedOrgUserDto>(cacheKey);
             if (cached != null)
-            {
-                return ApiResponse<IEnumerable<UserDto>>.SuccessResponse(
-                    cached.Users,
-                    $"Retrieved {cached.Users.Count} users from cache (page {page} of {pageSize}, total {cached.TotalCount})");
-            }
+                return ApiResponse<IEnumerable<OrganizationUserDto>>.SuccessResponse(cached.Users, $"Retrieved {cached.Users.Count} users from cache.");
 
             var organization = await _unitOfWork.Organizations.GetWithMembersAsync(organizationId);
             if (organization == null)
-                throw new NotFoundException("Organization with provided ID does not exist or has been deleted");
+                throw new BadRequestException("Organization not found or deleted.");
 
             var pagedMembers = await _unitOfWork.OrganizationMembers.GetPagedAsync(
                 predicate: m => m.OrganizationId == organizationId,
                 page,
                 pageSize);
 
-            if (!pagedMembers.Items.Any())
+            var users = new List<OrganizationUserDto>();
+            foreach (var m in pagedMembers.Items)
             {
-                return ApiResponse<IEnumerable<UserDto>>.SuccessResponse(
-                    Enumerable.Empty<UserDto>(),
-                    "No users found in this organization");
-            }
-
-            var userDtoList = new List<UserDto>();
-
-            foreach (var om in pagedMembers.Items)
-            {
-                var roles = await _userManager.GetRolesAsync(om.User);
-
-                userDtoList.Add(new UserDto
+                users.Add(new OrganizationUserDto
                 {
-                    Id = om.User.Id,
-                    FirstName = om.User.FirstName,
-                    LastName = om.User.LastName,
-                    DisplayName = om.User.DisplayName,
-                    Email = om.User.Email ?? string.Empty,
-                    Roles = roles.ToList()
+                    Id = m.User.Id,
+                    FirstName = m.User.FirstName,
+                    LastName = m.User.LastName,
+                    DisplayName =  m.DisplayName,
+                    Email = m.User.Email ?? string.Empty,
+                    Role = m.Role 
                 });
             }
 
-            var totalCount = await _unitOfWork.OrganizationMembers
-                .CountAsync(m => m.OrganizationId == organizationId);
+            var totalCount = await _unitOfWork.OrganizationMembers.CountAsync(m => m.OrganizationId == organizationId);
 
-            var cacheResult = new 
-            {
-                Users = userDtoList,
-                TotalCount = totalCount
-            };
+            await _cacheService.SetAsync(cacheKey, new { Users = users, TotalCount = totalCount }, TimeSpan.FromMinutes(10));
 
-            await _cacheService.SetAsync(cacheKey, cacheResult, TimeSpan.FromMinutes(10));
-         
-            return ApiResponse<IEnumerable<UserDto>>.SuccessResponse(
-                userDtoList,
-                $"Retrieved {userDtoList.Count} users (page {page} of {pageSize}, total {totalCount})");
+            return ApiResponse<IEnumerable<OrganizationUserDto>>.SuccessResponse(users, $"Retrieved {users.Count} users (page {page})");
         }
 
         public async Task<ApiResponse<UserDto>> GetUserAsync(Guid userId)
         {
             if (userId == Guid.Empty)
-                throw new BadRequestException("User ID cannot be empty");
+                throw new BadRequestException("User ID cannot be empty.");
 
             var cacheKey = $"user-{userId}";
-
-            UserDto? cached = null;
-            try
-            {
-                cached = await _cacheService.GetAsync<UserDto>(cacheKey);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Cache read failed for key {Key}, falling through to DB", cacheKey);
-            }
+            var cached = await _cacheService.GetAsync<UserDto>(cacheKey);
 
             if (cached != null)
-                return ApiResponse<UserDto>.SuccessResponse(cached, "User retrieved successfully (from cache)");
+                return ApiResponse<UserDto>.SuccessResponse(cached, "User retrieved from cache.");
 
             var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null)
-                throw new NotFoundException("User with provided ID not found");
+            if (user == null || user.IsDeleted)
+                throw new BadRequestException("User not found.");
 
-            var roles = await _userManager.GetRolesAsync(user);
-            var userDto = UserMapper.ToDto(user, roles);
+            await _cacheService.SetAsync(cacheKey, user, TimeSpan.FromMinutes(15));
 
-            try
-            {
-                await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(15));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Cache write failed for key {Key}", cacheKey);
-            }
+            var userDto = UserMapper.ToUserDto(user);
 
             await _unitOfWork.AuditLogs.LogAsync(
                 userId: _currentUserService.UserId,
@@ -212,66 +160,54 @@ namespace VoteMe.Application.Services
 
             return ApiResponse<UserDto>.SuccessResponse(userDto, "User retrieved successfully");
         }
-        public async Task<ApiResponse<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto dto)
-        {
-            if (userId == Guid.Empty)
-                throw new BadRequestException("User ID cannot be empty");
 
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null || user.IsDeleted)
-                throw new NotFoundException("User not found or has been deleted");
+        //public async Task<ApiResponse<b>> UpdateUserAsync(UpdateUserDto dto)
+        //{
+        //    var userId = _currentUserService.UserId;
 
-            if (_currentUserService.UserId != userId &&
-                !_currentUserService.Roles.Contains(Roles.SuperAdmin))
-            {
-                throw new ForbiddenException("You are not authorized to update this user");
-            }
+        //    var user = await _userManager.FindByIdAsync(userId.ToString());
+        //    if (user == null || user.IsDeleted)
+        //        throw new BadRequestException("User not found or has been deleted.");
 
-            var changes = new List<string>();
+        //    var changes = new List<string>();
 
-            if (!string.IsNullOrWhiteSpace(dto.FirstName) && dto.FirstName.Trim() != user.FirstName)
-            {
-                user.FirstName = dto.FirstName.Trim();
-                changes.Add("FirstName");
-            }
+        //    await _unitOfWork.BeginTransactionAsync();
 
-            if (!string.IsNullOrWhiteSpace(dto.LastName) && dto.LastName.Trim() != user.LastName)
-            {
-                user.LastName = dto.LastName.Trim();
-                changes.Add("LastName");
-            }
+        //    if (!string.IsNullOrWhiteSpace(dto.FirstName) && dto.FirstName.Trim() != user.FirstName)
+        //    {
+        //        user.FirstName = dto.FirstName.Trim();
+        //        changes.Add("FirstName");
+        //    }
 
-            if (!string.IsNullOrWhiteSpace(dto.DisplayName) && dto.DisplayName.Trim() != user.DisplayName)
-            {
-                user.DisplayName = dto.DisplayName.Trim();
-                changes.Add("DisplayName");
-            }
+        //    if (!string.IsNullOrWhiteSpace(dto.LastName) && dto.LastName.Trim() != user.LastName)
+        //    {
+        //        user.LastName = dto.LastName.Trim();
+        //        changes.Add("LastName");
+        //    }
 
-            user.UpdateTimestamps();
+        //    user.UpdateTimestamps();
 
-            var updateResult = await _userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
-            {
-                var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
-                throw new Domain.Exceptions.InvalidOperationException($"User update failed: {errors}");
-            }
+        //    var updateResult = await _userManager.UpdateAsync(user);
+        //    await _unitOfWork.CommitTransactionAsync();
+        //    await _unitOfWork.SaveChangesAsync();
 
-            await _unitOfWork.AuditLogs.LogAsync(
-                userId: _currentUserService.UserId,
-                action: AuditAction.Update,
-                details: $"User {user.Email} (ID: {userId}) updated by {_currentUserService.UserId}. Changed fields: {string.Join(", ", changes)}"
-            );
+        //    if (!updateResult.Succeeded)
+        //    {
+        //        var errors = string.Join(", ", updateResult.Errors.Select(e => e.Description));
+        //        throw new Domain.Exceptions.InvalidOperationException($"User update failed: {errors}");
+        //    }
 
-            await _unitOfWork.SaveChangesAsync();
+        //    await _unitOfWork.AuditLogs.LogAsync(
+        //        userId: _currentUserService.UserId,
+        //        action: AuditAction.Update,
+        //        details: $"User {user.Email} (ID: {userId}) updated their profile. Changed fields: {string.Join(", ", changes)}"
+        //    );
 
-            await _cacheService.RemoveAsync($"user-{userId}");
+        //    await _cacheService.RemoveAsync($"user-{userId}");
 
-            var roles = await _userManager.GetRolesAsync(user);
-            var updatedDto = UserMapper.ToDto(user, roles);
+        //    var updatedDto = UserMapper.ToOrgUserDto(user, member!);
 
-            return ApiResponse<UserDto>.SuccessResponse(
-                updatedDto,
-                "User updated successfully");
-        }
+        //    return ApiResponse<OrganizationUserDto>.SuccessResponse(updatedDto, "User updated successfully");
+        //}
     }
 }

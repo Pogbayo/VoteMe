@@ -27,4 +27,13 @@ public class VotesController : BaseController
         var result = await _voteService.CastVoteAsync(candidateId);
         return result.Success ? OkResponse(true, "Vote cast successfully") : ErrorResponse("Vote failed");
     }
+
+    [HttpGet("{organizationId:guid}/total-votes")]
+    [Authorize(Policy = "Authenticated")]
+    public async Task<IActionResult> GetOrganizationVotesCount([FromRoute] Guid organizationId)
+    {
+        var result = await _voteService.GetOrganizationVotesCount(organizationId);
+        return result.Success ? OkResponse(result.
+            Data, "Vote count") : ErrorResponse("Vote failed");
+    }
 }

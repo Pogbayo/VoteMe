@@ -2,10 +2,9 @@
 {
     public enum MembershipStatus
     {
-        Pending,
-        Approved,
-        Removed,
-        Rejected,
-        Banned
+        Pending = 0,
+        Approved = 1,
+        Removed = 2,
+        Rejected = 3,
     }
 }

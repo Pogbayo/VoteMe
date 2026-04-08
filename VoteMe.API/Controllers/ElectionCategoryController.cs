@@ -27,7 +27,7 @@ public class ElectionCategoryController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> CreateElectionCategory([FromBody] CreateElectionCategoryDto dto)
     {
         var result = await _electionCategoryService.CreateElectionCategoryAsync(dto);
@@ -35,7 +35,7 @@ public class ElectionCategoryController : BaseController
     }
 
     [HttpPatch("{electionCategoryId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> UpdateElectionCategory([FromRoute] Guid electionCategoryId, [FromBody] UpdateElectionCategoryDto dto)
     {
         var result = await _electionCategoryService.UpdateElectionCategoryAsync(electionCategoryId, dto);
@@ -43,7 +43,7 @@ public class ElectionCategoryController : BaseController
     }
 
     [HttpDelete("{electionCategoryId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> DeleteElectionCategory(Guid electionCategoryId)
     {
         var result = await _electionCategoryService.DeleteElectionCategoryAsync(electionCategoryId);
@@ -59,7 +59,7 @@ public class ElectionCategoryController : BaseController
     }
 
     [HttpGet("{electionCategoryId:guid}/results")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetElectionCategoryResults(Guid electionCategoryId)
     {
         var result = await _electionCategoryService.GetElectionCategoryResultsAsync(electionCategoryId);

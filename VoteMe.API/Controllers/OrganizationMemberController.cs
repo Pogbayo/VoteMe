@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VoteMe.Application.DTOs.OrganizationMember;
 using VoteMe.Application.Interface.IServices;
 
 namespace VoteMe.API.Controllers;
@@ -18,15 +19,15 @@ public class OrganizationMemberController : BaseController
     }
 
     [HttpGet("{organizationId:guid}/pending")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetPendingMembers([FromRoute] Guid organizationId)
     {
         var result = await _organizationMemberService.GetPendingMembersAsync(organizationId);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
-    [HttpPost("{organizationId:guid}/{userId:guid}/approve")]
-    [Authorize(Policy = "OrgAdmin")]
+    [HttpPost("{organizationId:guid}/approve/{userId:guid}")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> ApproveMember(
         [FromRoute] Guid organizationId,
         [FromRoute] Guid userId)
@@ -35,8 +36,8 @@ public class OrganizationMemberController : BaseController
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
-    [HttpPost("{organizationId:guid}/{userId:guid}/reject")]
-    [Authorize(Policy = "OrgAdmin")]
+    [HttpPost("{organizationId:guid}/reject/{userId:guid}")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> RejectMember(
         [FromRoute] Guid organizationId,
         [FromRoute] Guid userId)
@@ -47,14 +48,14 @@ public class OrganizationMemberController : BaseController
 
     [HttpPost("join")]
     [Authorize(Policy = "Authenticated")]
-    public async Task<IActionResult> JoinOrganization([FromRoute] string uniqueKey)
+    public async Task<IActionResult> JoinOrganization([FromBody] JoinOrgDto dto)
     {
-        var result = await _organizationMemberService.JoinOrganizationAsync(uniqueKey);
+        var result = await _organizationMemberService.JoinOrganizationAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
     [HttpDelete("{organizationId:guid}/members/{userId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> RemoveMember(Guid organizationId, Guid userId)
     {
         var result = await _organizationMemberService.RemoveMemberAsync(organizationId, userId);
@@ -62,7 +63,7 @@ public class OrganizationMemberController : BaseController
     }
 
     [HttpPost("{organizationId:guid}/promote/{userId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> PromoteToAdmin(Guid organizationId, Guid userId)
     {
         var result = await _organizationMemberService.PromoteToAdminAsync(organizationId, userId);
@@ -70,7 +71,7 @@ public class OrganizationMemberController : BaseController
     }
 
     [HttpPost("{organizationId:guid}/demote/{userId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> DemoteFromAdmin(Guid organizationId, Guid userId)
     {
         var result = await _organizationMemberService.DemoteFromAdminAsync(organizationId, userId);
@@ -93,11 +94,27 @@ public class OrganizationMemberController : BaseController
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
+    [HttpGet("{organizationId:guid}/approved-members-count")]
+    [Authorize(Policy = "Authenticated")]
+    public async Task<IActionResult> GetApprovedMembersCount([FromRoute] Guid organizationId)
+    {
+        var result = await _organizationMemberService.GetApprovedMembersCount(organizationId);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
     [HttpGet("{organizationId:guid}/members")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetMembers(Guid organizationId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _organizationMemberService.GetMembersAsync(organizationId, page, pageSize);
+        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    }
+
+    [HttpGet("{organizationId:guid}/membership/{userId}")]
+    [Authorize(Policy = "Authenticated")]
+    public async Task<IActionResult> GetMemberShip([FromRoute ]Guid organizationId, [FromRoute] Guid userId)
+    {
+        var result = await _organizationMemberService.GetMemberShip(organizationId,userId);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 }

@@ -1,13 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
-using VoteMe.Application.Authorization;
+﻿using Microsoft.Extensions.Logging;
 using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Organization;
 using VoteMe.Application.Events.Organization;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Organization;
-using VoteMe.Domain.Entities;
 using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
@@ -35,13 +33,12 @@ namespace VoteMe.Application.Services
         {
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
             if (organization == null)
-                throw new NotFoundException("Organization not found");
+                throw new BadRequestException("Organization not found");
 
-            await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-                _unitOfWork,
-                _currentUserService,
-                organizationId,
-                "delete this organization");
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(_currentUserService.UserId, organization.Id);
+
+            if (!PermissionChecker.HasPermission(userRole.Value, Permission.DeleteOrganization))
+                throw new ForbiddenException("You do not have permission to delete this organization");
 
             var hasActiveElections = await _unitOfWork.Elections.ExistsAsync(
                 e => e.OrganizationId == organizationId &&
@@ -56,6 +53,7 @@ namespace VoteMe.Application.Services
 
             await _unitOfWork.CascadeSoftDeleteForOrganizationAsync(organizationId);
 
+            organization.IsActive = false;
             organization.MarkAsDeleted();
             _unitOfWork.Organizations.Update(organization);
 
@@ -86,15 +84,13 @@ namespace VoteMe.Application.Services
 
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
             if (organization == null || organization.IsDeleted)
-                throw new NotFoundException("Organization not found");
+                throw new BadRequestException("Organization not found");
 
             var dto = OrganizationMapper.ToDto(organization);
 
             await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(15));
 
-            return ApiResponse<OrganizationDto>.SuccessResponse(
-                dto,
-                "Organization retrieved successfully");
+            return ApiResponse<OrganizationDto>.SuccessResponse(dto,"Organization retrieved successfully");
         }
 
         public async Task<ApiResponse<bool>> UpdateOrganizationAsync(
@@ -104,14 +100,13 @@ namespace VoteMe.Application.Services
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
 
             if (organization == null || organization.IsDeleted)
-                throw new NotFoundException("Organization not found");
+                throw new BadRequestException("Organization not found");
             var userId = _currentUserService.UserId;
 
-            await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-                _unitOfWork,
-                _currentUserService,
-                organizationId,
-                "update this organization");
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(_currentUserService.UserId, organization.Id);
+
+            if (!PermissionChecker.HasPermission(userRole.Value, Permission.UpdateOrganization))
+                throw new ForbiddenException("You do not have permission to update this organization");
 
             if (!string.IsNullOrWhiteSpace(dto.Name))
                 organization.Name = dto.Name.Trim();

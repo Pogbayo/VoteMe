@@ -25,44 +25,37 @@ namespace VoteMe.Infrastructure.Services
             _userManager = userManager;
         }
 
-
         public async Task<string> GenerateAccessTokenAsync(AppUser user)
         {
             if (user == null)
-            {
-                _logger.LogWarning("User object is null");
                 throw new ArgumentNullException(nameof(user));
-            }
+
+            var roles = await _userManager.GetRolesAsync(user);
 
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.GivenName, user.FirstName),
-                new Claim(ClaimTypes.Surname, user.LastName),
-                new Claim("displayName", user.DisplayName ?? $"{user.FirstName} {user.LastName}"),
-                new Claim("tokenVersion", user.TokenVersion.ToString())      
+                new Claim(ClaimTypes.GivenName, user.FirstName ?? string.Empty),
+                new Claim(ClaimTypes.Surname, user.LastName ?? string.Empty),
+                //new Claim("globalDisplayName", user.GlobalDisplayName ?? $"{user.FirstName} {user.LastName}"),
+                new Claim("tokenVersion", user.TokenVersion.ToString()),
+                new Claim("isSuperAdmin", user.IsSuperAdmin.ToString().ToLower())
             };
 
-            var roles = await _userManager.GetRolesAsync(user);
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var expiryMinutes = _jwtSettings.ExpiryMinutes * 60;
-
-            SymmetricSecurityKey key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_jwtSettings.Key)
-            );
-
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _jwtSettings.Issuer,
                 audience: _jwtSettings.Audience,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
                 claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
                 signingCredentials: creds
             );
 

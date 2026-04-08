@@ -4,11 +4,13 @@ using VoteMe.Application.Common;
 using VoteMe.Application.DTOs.Candidate;
 using VoteMe.Application.DTOs.ElectionCategory;
 using VoteMe.Application.Events.ElectionCategory;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Candidate;
 using VoteMe.Application.Mappers.ElectionCategory;
 using VoteMe.Domain.Entities;
+using VoteMe.Domain.Enum;
 using VoteMe.Domain.Exceptions;
 
 namespace VoteMe.Application.Services;
@@ -39,21 +41,32 @@ public class ElectionCategoryService : IElectionCategoryService
     {
         var electionCategory = await _unitOfWork.ElectionCategories.GetElectionCategoryAsync(electionCategoryId);
         if (electionCategory == null)
-            throw new NotFoundException("ElectionCategory not found");
+            throw new BadRequestException("ElectionCategory not found");
 
         return ApiResponse<ElectionCategoryDto>.SuccessResponse(
             ElectionCategoryMapper.ToDto(electionCategory),
             "ElectionCategory retrieved successfully");
     }
 
+    public async Task<ApiResponse<int>> GetElectionCategoriesCountAsync(Guid electionId)
+    {
+        var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
+        if (election == null)
+            throw new BadRequestException("Election not found");
+
+        var count = await _unitOfWork.ElectionCategories.GetElectionCategoriesCountAsync(electionId);
+
+        return ApiResponse<int>.SuccessResponse(count, "Election categories count retrieved successfully");
+    }
     public async Task<ApiResponse<IEnumerable<ElectionCategoryDto>>> GetElectionCategoriesAsync(Guid electionId)
     {
         var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
         if (election == null)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
         var cacheKey = $"election-categories-{electionId}";
         var cached = await _cacheService.GetAsync<IEnumerable<ElectionCategoryDto>>(cacheKey);
+
         if (cached != null)
         {
             return ApiResponse<IEnumerable<ElectionCategoryDto>>.SuccessResponse(
@@ -64,7 +77,9 @@ public class ElectionCategoryService : IElectionCategoryService
 
         if (!electionCategories.Any())
             return ApiResponse<IEnumerable<ElectionCategoryDto>>.SuccessResponse(Enumerable.Empty<ElectionCategoryDto>(), "ElectionCategories list is empty");
+
         _logger.LogInformation($"Number of electionCategories: {electionCategories.Count()}. Categories: {string.Join(", ", electionCategories.Select(c => c.ToString()))}");
+
         var dtos = ElectionCategoryMapper.ToDtoList(electionCategories);
 
         await _cacheService.SetAsync(cacheKey, dtos, TimeSpan.FromMinutes(10));
@@ -78,7 +93,7 @@ public class ElectionCategoryService : IElectionCategoryService
         var electionCategory = await _unitOfWork.ElectionCategories.GetElectionCategoryResultsAsync(electionCategoryId);
 
         if (electionCategory == null)
-            throw new NotFoundException("ElectionCategory not found");
+            throw new BadRequestException("ElectionCategory not found");
 
         var cacheKey = $"election-category-results-{electionCategoryId}";
         var cached = await _cacheService.GetAsync<ElectionCategoryResultDto>(cacheKey);
@@ -110,9 +125,14 @@ public class ElectionCategoryService : IElectionCategoryService
 
         var election = await _unitOfWork.Elections.GetByIdAsync(dto.ElectionId);
         if (election == null)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(_unitOfWork,_currentUserService,election.OrganizationId,"create ElectionCategories");
+        if (election.Status != ElectionStatus.Pending)
+            throw new BadRequestException("Cannot add candidates after election has started");
+        var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.CreateElectionCategory))
+            throw new ForbiddenException("You do not have permission to create election categories");
 
         var electionCategory = new ElectionCategory
         {
@@ -146,17 +166,16 @@ public class ElectionCategoryService : IElectionCategoryService
     {
         var electionCategory = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
         if (electionCategory == null)
-            throw new NotFoundException("ElectionCategory not found");
+            throw new BadRequestException("ElectionCategory not found");
 
         var election = await _unitOfWork.Elections.GetByIdAsync(electionCategory.ElectionId);
         if (election == null)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "update ElectionCategories");
+        var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.UpdateElectionCategory))
+            throw new ForbiddenException("You do not have permission to update election categories");
 
         if (!string.IsNullOrWhiteSpace(dto.Name))
             electionCategory.Name = dto.Name.Trim();
@@ -188,17 +207,16 @@ public class ElectionCategoryService : IElectionCategoryService
     {
         var electionCategory = await _unitOfWork.ElectionCategories.GetByIdAsync(electionCategoryId);
         if (electionCategory == null)
-            throw new NotFoundException("ElectionCategory not found");
+            throw new BadRequestException("ElectionCategory not found");
 
         var election = await _unitOfWork.Elections.GetByIdAsync(electionCategory.ElectionId);
         if (election == null)
-            throw new NotFoundException("Election not found");
+            throw new BadRequestException("Election not found");
 
-        await OrganizationAuthorization.RequireCurrentUserIsOrgAdmin(
-            _unitOfWork,
-            _currentUserService,
-            election.OrganizationId,
-            "delete ElectionCategories");
+        var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(_currentUserService.UserId, election.OrganizationId);
+
+        if (!PermissionChecker.HasPermission(userRole.Value, Permission.DeleteElectionCategory))
+            throw new ForbiddenException("You do not have permission to election categories");
 
         await _unitOfWork.ElectionCategories.SoftDeleteByIdAsync(electionCategoryId);
         await _unitOfWork.SaveChangesAsync();

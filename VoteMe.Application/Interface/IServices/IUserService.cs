@@ -7,8 +7,8 @@ namespace VoteMe.Application.Interface.IServices
     public interface IUserService
     {
         Task<ApiResponse<UserDto>> GetUserAsync(Guid userId);
-        Task<ApiResponse<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto dto);
-        Task<ApiResponse<bool>> DeleteUserAsync(Guid userId);
-        Task<ApiResponse<IEnumerable<UserDto>>> GetAllUsersAsync(Guid organizationId , int page = 1, int pageSize = 20);
+        //Task<ApiResponse<OrganizationUserDto>> UpdateUserAsync(UpdateUserDto dto);
+        Task<ApiResponse<bool>> DeleteUserAsync(Guid userId, Guid organizationId);
+        Task<ApiResponse<IEnumerable<OrganizationUserDto>>> GetAllUsersAsync(Guid organizationId , int page = 1, int pageSize = 20);
     }
 }

@@ -83,7 +83,6 @@ namespace VoteMe.Infrastructure.Extension
             .AddDefaultTokenProviders();
 
             //Redis
-
             var options = new ConfigurationOptions
             {
                 EndPoints = { "redis-12945.c247.eu-west-1-1.ec2.cloud.redislabs.com:12945" },
@@ -228,12 +227,25 @@ namespace VoteMe.Infrastructure.Extension
                  });
             });
 
+            services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy.SetIsOriginAllowed(origin =>
+                      origin.Contains("localhost:5173") ||
+                      origin.Contains("https://voteme-frontend.vercel.app"))
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+                });
+            });
+
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"));
-                options.AddPolicy("OrgAdmin", policy => policy.RequireRole("OrgAdmin"));
-                options.AddPolicy("Voter", policy => policy.RequireRole("Voter"));
-                options.AddPolicy("OrgAdminOrSuperAdmin", policy => policy.RequireRole("OrgAdmin", "SuperAdmin"));
+                //options.AddPolicy("SuperAdmin", policy => policy.RequireRole("SuperAdmin"));
+                //options.AddPolicy("OrgAdmin", policy => policy.RequireRole("OrgAdmin"));
+                //options.AddPolicy("Voter", policy => policy.RequireRole("Voter"));
+                //options.AddPolicy("OrgAdminOrSuperAdmin", policy => policy.RequireRole("OrgAdmin", "SuperAdmin"));
                 options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
             });
 

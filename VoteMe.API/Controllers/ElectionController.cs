@@ -12,16 +12,18 @@ namespace VoteMe.API.Controllers;
 public class ElectionController : BaseController
 {
     private readonly IElectionService _electionService;
-
-    public ElectionController(IElectionService electionService)
+    private readonly ILogger<ElectionController> _logger;
+    public ElectionController(IElectionService electionService, ILogger<ElectionController> logger)
     {
         _electionService = electionService;
+        _logger = logger;
     }
 
     [HttpPost]
-    [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> CreateElection([FromForm] CreateElectionDto dto)
+    [Authorize(Policy = "Authenticated")]
+    public async Task<IActionResult> CreateElection([FromBody] CreateElectionDto dto)
     {
+        _logger.LogInformation("Received OrganizationId: {OrganizationId}", dto.OrganizationId);
         var result = await _electionService.CreateElectionAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
@@ -35,7 +37,7 @@ public class ElectionController : BaseController
     }
 
     [HttpGet("organization/{organizationId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetOrganizationElections(Guid organizationId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _electionService.GetOrganizationElectionsAsync(organizationId, page, pageSize);
@@ -43,7 +45,7 @@ public class ElectionController : BaseController
     }
 
     [HttpPost("{electionId:guid}/open")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> OpenElection(Guid electionId, [FromBody] OpenElectionDto dto)
     {
         var result = await _electionService.OpenElectionAsync(electionId, dto);
@@ -51,7 +53,7 @@ public class ElectionController : BaseController
     }
 
     [HttpPatch("{electionId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> UpdateElection(Guid electionId, [FromBody] UpdateElectionDto dto)
     {
         var result = await _electionService.UpdateElectionAsync(electionId, dto);
@@ -59,7 +61,7 @@ public class ElectionController : BaseController
     }
 
     [HttpDelete("{electionId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> DeleteElection(Guid electionId)
     {
         var result = await _electionService.DeleteElectionAsync(electionId);
@@ -67,7 +69,7 @@ public class ElectionController : BaseController
     }
 
     [HttpGet("{electionId:guid}/results")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetElectionResults(Guid electionId)
     {
         var result = await _electionService.GetElectionResultsAsync(electionId);

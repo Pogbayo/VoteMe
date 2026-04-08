@@ -27,7 +27,7 @@ public class OrganizationsController : BaseController
     }
 
     [HttpPatch("{organizationId:guid}")]
-    [Authorize(Policy = "OrgAdminOrSuperAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> UpdateOrganization([FromRoute]Guid organizationId, [FromForm] UpdateOrganizationDto dto)
     {
         var result = await _organizationService.UpdateOrganizationAsync(organizationId, dto);
@@ -35,7 +35,7 @@ public class OrganizationsController : BaseController
     }
 
     [HttpDelete("{organizationId:guid}")]
-    [Authorize(Policy = "OrgAdminOrSuperAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> DeleteOrganization(Guid organizationId)
     {
         var result = await _organizationService.DeleteOrganizationAsync(organizationId);

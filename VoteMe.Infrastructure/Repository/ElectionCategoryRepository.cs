@@ -12,6 +12,12 @@ namespace VoteMe.Infrastructure.Repository
         {
         }
 
+        public async Task<int> GetElectionCategoriesCountAsync(Guid electionId)
+        {
+            return await _context.ElectionCategories
+                .CountAsync(c => c.ElectionId == electionId);
+        }
+
         public async Task<ElectionCategory?> GetElectionCategoryAsync(Guid electionCategoryId)
         {
             return await _context.ElectionCategories
@@ -27,6 +33,8 @@ namespace VoteMe.Infrastructure.Repository
                 .OrderBy(c => c.CreatedAt)
                 .ToListAsync();
         }
+
+
 
         public async Task<ElectionCategory?> GetElectionCategoryResultsAsync(Guid categoryId)
         {

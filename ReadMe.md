@@ -380,7 +380,7 @@ VoteMe uses SQL Server with EF Core Code First migrations.
 ```
 AppUser
     └── OrganizationMember (many)
-            └── Organization 
+            └── Organization
                     └── Election (many)
                             └── ElectionCategory (many)
                                     └── Candidate (many)

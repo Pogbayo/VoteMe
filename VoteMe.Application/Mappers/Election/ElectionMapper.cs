@@ -18,6 +18,7 @@ namespace VoteMe.Application.Mappers.Election
                 Status = election.Status,
                 IsPrivate = election.IsPrivate,
                 OrganizationId = election.OrganizationId,
+                CategoryCount = election.Categories?.Count ?? 0,
                 Categories = election.Categories?.Select(ElectionCategoryMapper.ToDto).ToList() ?? new List<ElectionCategoryDto>(),
                 CreatedAt = election.CreatedAt
             };
@@ -30,7 +31,7 @@ namespace VoteMe.Application.Mappers.Election
                 ElectionId = election.Id,
                 ElectionName = election.Name,
                 TotalVotes = categoryResults.Sum(c => c.TotalVotes),
-                WinnersNames = categoryResults.Select(c => c.Winner!.DisplayName).ToList()!,
+                WinnersNames = categoryResults.Select(c => c.Winner?.DisplayName).Where(name => name != null).ToList()!,
                 CategoryResults = categoryResults
             };
         }

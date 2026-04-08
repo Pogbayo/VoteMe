@@ -26,24 +26,26 @@ public class UsersController : BaseController
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
-    [HttpPatch("{userId:guid}")]
-    [Authorize(Policy = "Authenticated")]
-    public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserDto dto)
-    {
-        var result = await _userService.UpdateUserAsync(userId, dto);
-        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
-    }
+    //[HttpPatch]
+    //[Authorize(Policy = "Authenticated")]
+    //public async Task<IActionResult> UpdateUser( [FromBody] UpdateUserDto dto)
+    //{
+    //    var result = await _userService.UpdateUserAsync( dto);
+    //    return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    //}
 
-    [HttpDelete("{userId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
-    public async Task<IActionResult> DeleteUser(Guid userId)
+    [HttpDelete("organization/{organizationId:guid}/users/{userId:guid}")]
+    [Authorize(Policy = "Authenticated")]
+    public async Task<IActionResult> RemoveUserFromOrganization(Guid organizationId, Guid userId)
     {
-        var result = await _userService.DeleteUserAsync(userId);
-        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+        var result = await _userService.DeleteUserAsync(userId, organizationId);
+        return result.Success
+            ? OkResponse(result.Data, result.Message)
+            : ErrorResponse(result.Message, result.Errors);
     }
 
     [HttpGet("organization/{organizationId:guid}")]
-    [Authorize(Policy = "OrgAdmin")]
+    [Authorize(Policy = "Authenticated")]
     public async Task<IActionResult> GetAllOrganizationUsers(Guid organizationId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _userService.GetAllUsersAsync(organizationId, page, pageSize);

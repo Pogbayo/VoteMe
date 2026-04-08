@@ -5,7 +5,24 @@ namespace VoteMe.Application.Mappers.User
 {
     public static class UserMapper
     {
-        public static UserDto ToDto(AppUser user, IList<string> roles)
+        public static OrganizationUserDto ToOrgUserDto(AppUser user,OrganizationMember member)
+        {
+            return new OrganizationUserDto
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email!,
+                Role = member.Role,
+                CreatedAt = user.CreatedAt
+            };
+        }
+
+        public static IEnumerable<OrganizationUserDto> ToOrgUserDtoList(IEnumerable<AppUser> users,OrganizationMember member)
+        {
+            return users.Select(u => ToOrgUserDto(u, member));
+        }
+        public static UserDto ToUserDto(AppUser user)
         {
             return new UserDto
             {
@@ -13,15 +30,13 @@ namespace VoteMe.Application.Mappers.User
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email!,
-                DisplayName = user.DisplayName,
-                Roles = roles.ToList(),
                 CreatedAt = user.CreatedAt
             };
         }
 
-        public static IEnumerable<UserDto> ToDtoList(IEnumerable<AppUser> users)
+        public static IEnumerable<UserDto> ToUserDtoList(IEnumerable<AppUser> users)
         {
-            return users.Select(u => ToDto(u, new List<string>()));
+            return users.Select(u => ToUserDto(u));
         }
     }
 }

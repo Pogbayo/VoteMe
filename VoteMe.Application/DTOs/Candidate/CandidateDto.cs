@@ -24,7 +24,6 @@ namespace VoteMe.Application.DTOs.Candidate
         [Url]
         public string? PhotoUrl { get; set; } 
 
-        [Required]
         public Guid ElectionCategoryId { get; set; }
     }
 }

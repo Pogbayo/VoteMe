@@ -1,4 +1,5 @@
-﻿using VoteMe.Domain.Entities;
+﻿using VoteMe.Application.Common;
+using VoteMe.Domain.Entities;
 
 namespace VoteMe.Application.Interface.IRepositories
 {
@@ -9,6 +10,7 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<Dictionary<Guid, int>> GetVoteCountsAsync(Guid electionId);
         //Task<int> GetTotalVotesAsync(Guid electionId);
         Task<Vote?> ChangeVoteAsync(Guid userId, Guid electionId, Guid newCandidateId);
+        Task<int> GetOrganizationVotesCount(Guid organizationId);
         Task<int> GetCandidateTotalVotesInAnElectionCategoryAsync(Guid candidateId, Guid electionCategoryId);
     }
 }

@@ -9,7 +9,7 @@ namespace VoteMe.Application.DTOs.OrganizationMember
         public string LastName { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
-        public DateTime JoinedAt { get; set; }
         public MembershipStatus Status { get; set; }
+        public DateTime JoinedAt { get; set; }
     }
 }

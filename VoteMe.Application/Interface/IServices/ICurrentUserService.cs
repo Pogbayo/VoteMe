@@ -4,11 +4,11 @@
     {
         Guid UserId { get; }
         string Email { get; }
-        string DisplayName { get; }
+        //string GlobalDisplayName { get; }
         string FirstName { get; }
         string LastName { get; }
         int TokenVersion { get; }
-        IEnumerable<string> Roles { get; }
+        //IEnumerable<string> Roles { get; }
         bool IsAuthenticated { get; }
     }
 }

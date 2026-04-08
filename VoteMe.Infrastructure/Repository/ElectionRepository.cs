@@ -38,13 +38,14 @@ namespace VoteMe.Infrastructure.Repository
         }
 
         public async Task<(IEnumerable<Election> Items, int TotalCount)> GetOrganizationElectionsAsync(
-        Guid organizationId,
-        int page = 1,
-        int pageSize = 20)
+            Guid organizationId,
+            int page = 1,
+            int pageSize = 20)
         {
             var query = _dbSet.AsNoTracking()
-                .Where(e => e.OrganizationId == organizationId) 
-                .OrderBy(e => e.CreatedAt);
+                 .Where(e => e.OrganizationId == organizationId)
+                 .Include(e => e.Categories)
+                 .OrderByDescending(e => e.CreatedAt);
 
             var totalCount = await query.CountAsync();
 
@@ -65,5 +66,7 @@ namespace VoteMe.Infrastructure.Repository
                         .ThenInclude(c => c.Votes)
                 .FirstOrDefaultAsync(e => e.Id == electionId);
         }
+
+     
     }
 }

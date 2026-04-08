@@ -1,4 +1,5 @@
-﻿using VoteMe.Domain.Entities;
+﻿using VoteMe.Application.DTOs.OrganizationMember;
+using VoteMe.Domain.Entities;
 using VoteMe.Domain.Enum;
 
 namespace VoteMe.Application.Interface.IRepositories
@@ -12,8 +13,11 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<IEnumerable<OrganizationMember>> GetUserOrganizationsAsync(Guid userId);
         Task<IEnumerable<OrganizationMember>> GetUserMembershipsAsync(Guid userId);
         Task<bool> IsMemberAsync(Guid userId, Guid organizationId);
-        Task<bool> IsAdminAsync(Guid userId, Guid organizationId);
+        Task<int> GetApprovedMembersCount(Guid organizationId, Guid userId);
+        Task<int> GetPendingMembersCount(Guid organizationId, Guid userId);
+        //Task<bool> IsAdminAsync(Guid userId, Guid organizationId);
+        Task<OrganizationRole?> GetUserRoleAsync(Guid userId, Guid organizationId);
         Task<IEnumerable<OrganizationMember>> GetMembersByStatusAsync(Guid organizationId, MembershipStatus status);
-        Task JoinOrganizationAsync(Guid userId, Guid organizationId);
+        Task<bool> JoinOrganizationAsync(Guid userId, JoinOrgDto dto, Guid organizationId);
     }
 }

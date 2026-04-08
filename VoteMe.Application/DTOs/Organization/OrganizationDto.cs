@@ -20,10 +20,6 @@ namespace VoteMe.Application.DTOs.Organization
 
         public bool IsActive { get; set; }
 
-        public Guid AdminId { get; set; }
-
-        public string AdminName { get; set; } = string.Empty;
-
         public DateTime CreatedAt { get; set; }
     }
 }

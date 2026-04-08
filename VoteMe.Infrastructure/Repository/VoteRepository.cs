@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using VoteMe.Application.Common;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Domain.Entities;
 using VoteMe.Infrastructure.Data;
@@ -32,6 +33,13 @@ namespace VoteMe.Infrastructure.Repository
         {
             return await _context.Candidates
                 .CountAsync(v => v.Id == candidateId);
+        }
+
+        public async Task<int> GetOrganizationVotesCount(Guid organizationId)
+        {
+            return await _dbSet
+               .Where(v => v.Election.OrganizationId == organizationId)
+               .CountAsync();
         }
 
         public async Task<Dictionary<Guid, int>> GetVoteCountsAsync(Guid electionId)

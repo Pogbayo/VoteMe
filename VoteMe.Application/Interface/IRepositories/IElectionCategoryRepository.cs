@@ -6,6 +6,8 @@ namespace VoteMe.Application.Interface.IRepositories
         Task<ElectionCategory?> GetElectionCategoryAsync(Guid electionCategoryIdelectionId);
         Task<IEnumerable<ElectionCategory>> GetElectionCategoriesAsync(Guid electionId);
         Task<ElectionCategory?> GetElectionCategoryResultsAsync(Guid categoryId);
+        Task<int> GetElectionCategoriesCountAsync(Guid electionId);
+
     }
 }
 

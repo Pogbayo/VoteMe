@@ -19,7 +19,7 @@ namespace VoteMe.Application.DTOs.Candidate
         [MaxLength(500)]
         public string? Bio { get; set; } = string.Empty;
 
-        public IFormFile? PhotoLogo { get; set; } 
+        public IFormFile? PhotoFile { get; set; } 
 
         [Required]
         public Guid ElectionCategoryId { get; set; }

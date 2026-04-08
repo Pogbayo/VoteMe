@@ -9,6 +9,7 @@ public interface IElectionCategoryService
 
     Task<ApiResponse<ElectionCategoryDto>> CreateElectionCategoryAsync(
         CreateElectionCategoryDto dto);
+    Task<ApiResponse<int>> GetElectionCategoriesCountAsync(Guid electionId);
 
     Task<ApiResponse<bool>> UpdateElectionCategoryAsync(Guid electionCategoryId, UpdateElectionCategoryDto dto);
 

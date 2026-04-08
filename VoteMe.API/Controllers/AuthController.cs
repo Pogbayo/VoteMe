@@ -25,7 +25,7 @@ public class AuthController : BaseController
     [HttpPost("register")]
     [EnableRateLimiting("auth")]
     [AllowAnonymous]
-    public async Task<IActionResult> Register([FromForm] RegisterUserDto dto)
+    public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
     {
         var result = await _authService.RegisterUserAsync(dto);
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
@@ -40,13 +40,13 @@ public class AuthController : BaseController
         return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
     }
 
-    [HttpPost("change-password")]
-    [Authorize(Policy = "Authenticated")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
-    {
-        var result = await _authService.ChangePasswordAsync(_currentUserService.UserId, dto);
-        return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
-    }
+    //[HttpPost("change-password")]
+    //[Authorize(Policy = "Authenticated")]
+    //public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    //{
+    //    var result = await _authService.ChangePasswordAsync(_currentUserService.UserId, dto);
+    //    return result.Success ? OkResponse(result.Data, result.Message) : ErrorResponse(result.Message, result.Errors);
+    //}
 
     [HttpPost("logout")]
     [Authorize(Policy = "Authenticated")]

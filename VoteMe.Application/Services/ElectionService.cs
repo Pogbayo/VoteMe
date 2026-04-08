@@ -4,6 +4,7 @@ using VoteMe.Application.DTOs.Candidate;
 using VoteMe.Application.DTOs.Election;
 using VoteMe.Application.DTOs.ElectionCategory;
 using VoteMe.Application.Events.Election;
+using VoteMe.Application.Helpers;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
 using VoteMe.Application.Mappers.Candidate;
@@ -49,25 +50,31 @@ namespace VoteMe.Application.Services
 
             var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
             if (election == null)
-                throw new NotFoundException("Election not found");
+                throw new BadRequestException("Election not found");
 
             var result = ElectionMapper.ToDto(election);
             await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(1));
 
             return ApiResponse<ElectionDto>.SuccessResponse(result, "Election retrieved successfully");
         }
-        public async Task<ApiResponse<ElectionDto>> CreateElectionAsync( CreateElectionDto dto)
+        public async Task<ApiResponse<ElectionDto>> CreateElectionAsync(CreateElectionDto dto)
         {
+            var userId = _currentUserService.UserId;
+
             var organization = await _unitOfWork.Organizations.GetByIdAsync(dto.OrganizationId);
             if (organization == null)
-                throw new NotFoundException("Organization not found");
+                throw new BadRequestException("Organization not found");
+
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(userId, dto.OrganizationId);
+            if (userRole == null || !PermissionChecker.HasPermission(userRole.Value, Permission.CreateElection))
+                throw new ForbiddenException("You do not have permission to manage elections");
+
+            _logger.LogInformation("Received OrganizationId: {OrganizationId}", dto.OrganizationId);
 
             var election = new Election
             {
                 Name = dto.Name.Trim(),
-                Description = string.IsNullOrWhiteSpace(dto.Description)
-                    ? string.Empty
-                    : dto.Description.Trim(),
+                Description = string.IsNullOrWhiteSpace(dto.Description) ? string.Empty : dto.Description.Trim(),
                 OrganizationId = dto.OrganizationId,
                 Status = ElectionStatus.Pending,
             };
@@ -77,8 +84,8 @@ namespace VoteMe.Application.Services
 
             _logger.LogInformation("Election '{Name}' created for organization '{OrgName}'",
                 election.Name, organization.Name);
-            await _cacheService.RemoveAsync($"organization-elections-{dto.OrganizationId}");
 
+            await _cacheService.RemoveAsync($"organization-elections-{dto.OrganizationId}");
 
             var memberEmails = await _unitOfWork.OrganizationMembers
                 .GetOrganizationMemberEmailsAsync(dto.OrganizationId);
@@ -99,12 +106,24 @@ namespace VoteMe.Application.Services
         }
         public async Task<ApiResponse<ElectionDto>> UpdateElectionAsync(Guid electionId, UpdateElectionDto dto)
         {
+            var userId = _currentUserService.UserId;
+            var orgId = await _unitOfWork.Elections.FindOneAsync(e => e.Id == electionId);
+            if(orgId == null)
+                throw new BadRequestException("Election not found");
+
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(userId,orgId.OrganizationId);
+            if (userRole == null)
+                throw new ForbiddenException("You are not a member of this organization");
+
+            if (!PermissionChecker.HasPermission(userRole.Value, Permission.UpdateElection))
+                throw new ForbiddenException("You do not have permission to manage elections");
+
             if (string.IsNullOrWhiteSpace(dto.Name))
                 throw new BadRequestException("Election name is required");
 
             var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
             if (election == null)
-                throw new NotFoundException("Election not found");
+                throw new BadRequestException("Election not found");
 
             if (election.Status != ElectionStatus.Pending)
                 throw new BadRequestException("Only pending elections can be updated");
@@ -143,7 +162,7 @@ namespace VoteMe.Application.Services
 
             var organization = await _unitOfWork.Organizations.GetByIdAsync(organizationId);
             if (organization == null)
-                throw new NotFoundException("Organization not found");
+                throw new BadRequestException("Organization not found");
 
             var cacheKey = $"organization-elections-{organizationId}";
             var cached = await _cacheService.GetAsync<PagedElectionResponse>(cacheKey);
@@ -162,15 +181,27 @@ namespace VoteMe.Application.Services
                 TotalCount = totalCount
             };
 
-            await _cacheService.SetAsync(cacheKey, paged, TimeSpan.FromMinutes(10));
+            await _cacheService.SetAsync(cacheKey, paged, TimeSpan.FromMinutes(2));
 
             return ApiResponse<PagedElectionResponse>.SuccessResponse(paged, "Elections retrieved successfully");
         }
         public async Task<ApiResponse<bool>> DeleteElectionAsync(Guid electionId)
         {
+            var userId = _currentUserService.UserId;
+            var orgId = await _unitOfWork.Elections.FindOneAsync(e => e.Id == electionId);
+            if (orgId == null)
+                throw new BadRequestException("Election not found");
+
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(userId, orgId.OrganizationId);
+            if (userRole == null)
+                throw new ForbiddenException("You are not a member of this organization");
+
+            if (!PermissionChecker.HasPermission(userRole.Value, Permission.DeleteElection))
+                throw new ForbiddenException("You do not have permission to delete elections");
+
             var election = await _unitOfWork.Elections.GetByIdAsync(electionId);
             if (election == null)
-                throw new NotFoundException("Election not found");
+                throw new BadRequestException("Election not found");
 
             if (election.Status == ElectionStatus.Active)
                 throw new BadRequestException("Cannot delete an active election");
@@ -195,7 +226,7 @@ namespace VoteMe.Application.Services
 
             var election = await _unitOfWork.Elections.GetFullElectionAsync(electionId);
             if (election == null)
-                throw new NotFoundException("Election not found");
+                throw new BadRequestException("Election not found");
 
             if (election.Status == ElectionStatus.Pending)
                 throw new BadRequestException("Election is still pending. You will receive the results once the election closes.");
@@ -229,7 +260,20 @@ namespace VoteMe.Application.Services
         public async Task<ApiResponse<bool>> OpenElectionAsync(Guid electionId, OpenElectionDto openElectionDto)
         {
             var election = await _unitOfWork.Elections.GetWithCategoriesAsync(electionId);
-            if (election == null) throw new NotFoundException("Election not found");
+            if (election == null) throw new BadRequestException("Election not found");
+
+            var userId = _currentUserService.UserId;
+            var orgId = await _unitOfWork.Elections.FindOneAsync(e => e.Id == electionId);
+            if (orgId == null)
+                throw new BadRequestException("Election not found");
+
+            var userRole = await _unitOfWork.OrganizationMembers.GetUserRoleAsync(userId, orgId.OrganizationId);
+
+            if (userRole == null)
+                throw new ForbiddenException("You are not a member of this organization");
+
+            if (!PermissionChecker.HasPermission(userRole.Value, Permission.UpdateElection))
+                throw new ForbiddenException("You do not have permission to manage elections");
 
             if (election.Status != ElectionStatus.Pending)
                 throw new BadRequestException("Election is not in pending status");

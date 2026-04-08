@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using VoteMe.Application.Common;
-using VoteMe.Application.DTOs.Vote;
 using VoteMe.Application.Events.Voting;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Application.Interface.IServices;
@@ -50,14 +49,15 @@ namespace VoteMe.Application.Services
             if (election == null)
                 throw new NotFoundException("Election not found");
 
-            if (election.EndDate <= DateTime.UtcNow)
-                throw new BadRequestException("Election has already closed");
+            //if (election.EndDate <= DateTime.UtcNow)
+            //    throw new BadRequestException("Election has already closed");
 
             if (election.Status != ElectionStatus.Active)
                 throw new BadRequestException("Voting is not currently open for this election");
 
             var membership = await _unitOfWork.OrganizationMembers
-                .GetMemberAsync(userId, election.OrganizationId);
+                .GetMemberAsync(election.OrganizationId,userId);
+            var role = membership.Role;
 
             if (membership == null)
                 throw new ForbiddenException("You are not a member of this organization");
@@ -68,8 +68,8 @@ namespace VoteMe.Application.Services
             if (membership.Status == MembershipStatus.Rejected)
                 throw new ForbiddenException("Your membership request was rejected");
 
-            if (membership.Status == MembershipStatus.Banned)
-                throw new ForbiddenException("You have been banned from this organization");
+            //if (membership.Status == MembershipStatus.Banned)
+            //    throw new ForbiddenException("You have been banned from this organization");
 
             var existingVote = await _unitOfWork.Votes.FindOneAsync(
                 v => v.VoterId == userId && v.ElectionCategoryId == category.Id);
@@ -95,7 +95,7 @@ namespace VoteMe.Application.Services
                     ElectionCategoryId = category.Id,
                     OldCandidateId = oldCandidateId,
                     NewCandidateId = candidateId,
-                    VoterDisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}",
+                    VoterDisplayName = membership.DisplayName,
                     VoterEmail = user.Email ?? string.Empty
                 });
 
@@ -119,7 +119,7 @@ namespace VoteMe.Application.Services
                 VoterId = userId,
                 VoterFirstName = user.FirstName,
                 VoterLastName = user.LastName,
-                VoterDisplayName = user.DisplayName ?? string.Empty,
+                VoterDisplayName = membership.DisplayName,
                 VoterEmail = user.Email ?? string.Empty,
                 ElectionId = election.Id,
                 ElectionName = election.Name,
@@ -132,6 +132,23 @@ namespace VoteMe.Application.Services
             });
 
             return ApiResponse<bool>.SuccessResponse(true, "Vote cast successfully");
+        }
+
+        public async Task<ApiResponse<int>> GetOrganizationVotesCount(Guid organizationId)
+        {
+            if (organizationId == Guid.Empty)
+                throw new BadRequestException("Bad request: OrganizationId needed");
+            var organization = await _unitOfWork.Organizations.FindOneAsync
+                (
+                 predicate: o => o.Id == organizationId
+                );
+
+            if (organization == null)
+                throw new NotFoundException("Org not found");
+
+            var totalCount = await _unitOfWork.Votes.GetOrganizationVotesCount(organizationId);
+
+            return ApiResponse<int>.SuccessResponse(totalCount, "Total Vote count retrieved successfully");
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using VoteMe.Domain.Entities;
 
@@ -35,9 +36,6 @@ namespace VoteMe.Infrastructure.Data
             // Organization indexes
             builder.Entity<Organization>()
                 .HasIndex(o => o.UniqueKey).IsUnique();
-
-            builder.Entity<Organization>()
-                .HasIndex(o => o.Email).IsUnique();
 
             // Election indexes
             builder.Entity<Election>()

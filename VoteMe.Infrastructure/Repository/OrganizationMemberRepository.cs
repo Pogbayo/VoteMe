@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using VoteMe.Application.DTOs.OrganizationMember;
 using VoteMe.Application.Interface.IRepositories;
 using VoteMe.Domain.Entities;
 using VoteMe.Domain.Enum;
@@ -19,7 +20,15 @@ namespace VoteMe.Infrastructure.Repository
                 .Where(m => m.UserId == userId)
                 .ToListAsync();
         }
-        public async Task<OrganizationMember?> GetMemberAsync(Guid userId, Guid organizationId)
+
+        public async Task<OrganizationRole?> GetUserRoleAsync(Guid userId, Guid organizationId)
+        {
+            var membership = await _context.OrganizationMembers
+                .FirstOrDefaultAsync(m => m.UserId == userId && m.OrganizationId == organizationId);
+
+            return membership?.Role; 
+        }
+        public async Task<OrganizationMember?> GetMemberAsync(Guid organizationId, Guid userId)
         {
             return await _dbSet
                 .Include(om => om.User)
@@ -35,6 +44,18 @@ namespace VoteMe.Infrastructure.Repository
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+        }
+        public async Task<int> GetApprovedMembersCount(Guid organizationId,Guid userId)
+        {
+            return await _dbSet
+                .Where(om => om.OrganizationId == organizationId && om.UserId == userId && om.Status == MembershipStatus.Approved)
+                .CountAsync();
+        }
+        public async Task<int> GetPendingMembersCount(Guid organizationId,Guid userId)
+        {
+            return await _dbSet
+                .Where(om => om.OrganizationId == organizationId && om.UserId == userId && om.Status == MembershipStatus.Pending)
+                .CountAsync();
         }
 
         public async Task<IEnumerable<OrganizationMember>> GetMembersByStatusAsync(
@@ -54,13 +75,13 @@ namespace VoteMe.Infrastructure.Repository
                 .ToListAsync();
         }
 
-        public async Task<bool> IsAdminAsync(Guid userId, Guid organizationId)
-        {
-            return await _dbSet
-                .AnyAsync(om => om.UserId == userId
-                    && om.OrganizationId == organizationId
-                    && om.IsAdmin == true);
-        }
+        //public async Task<bool> IsAdminAsync(Guid userId, Guid organizationId)
+        //{
+        //    return await _dbSet
+        //        .AnyAsync(om => om.UserId == userId
+        //            && om.OrganizationId == organizationId
+        //            && om.Role == OrganizationRole.Admin);
+        //}
 
         public async Task<bool> IsMemberAsync(Guid userId, Guid organizationId)
         {
@@ -86,16 +107,18 @@ namespace VoteMe.Infrastructure.Repository
                 .ToListAsync();
         }
 
-        public async Task JoinOrganizationAsync(Guid userId, Guid organizationId)
+        public async Task<bool> JoinOrganizationAsync(Guid userId, JoinOrgDto dto, Guid organizationId)
         {
             var member = new OrganizationMember
             {
                 UserId = userId,
                 OrganizationId = organizationId,
-                IsAdmin = false,
+                DisplayName = dto.DisplayName,
+                Role = OrganizationRole.Member,
                 JoinedAt = DateTime.UtcNow
             };
             await _dbSet.AddAsync(member);
+            return true;
         }
     }
 }

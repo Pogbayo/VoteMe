@@ -10,7 +10,17 @@ namespace VoteMe.API.Extension
     {
         public static IServiceCollection AddApiServices(this IServiceCollection services)
         {
-            services.AddControllers();
+
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+                }); services.Configure<RouteOptions>(options =>
+            {
+                options.LowercaseUrls = true;
+                options.LowercaseQueryStrings = true;
+            });
+
             services.AddEndpointsApiExplorer();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddSwaggerGen();
@@ -21,12 +31,13 @@ namespace VoteMe.API.Extension
         public static WebApplication UseApiMiddleware(this WebApplication app)
         {
             app.UseMiddleware<ExceptionMiddleware>();
+            //app.UseMiddleware<OrgIdLoggingMiddleware>();
 
             app.UseSwagger();
             app.UseSwaggerUI();
 
             app.UseHttpsRedirection();
-
+            app.UseCors("AllowFrontend");
             app.UseAuthentication();
             app.UseAuthorization();
             app.UseRateLimiter();
